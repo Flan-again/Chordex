@@ -70,12 +70,33 @@ header p {
 }
 
 select,
-input[type='range'] {
+input[type='range'],
+input[type='text'],
+#saveTuningBtn {
   background: #0f1530;
   color: var(--text);
   border: 1px solid #3a4787;
   border-radius: 8px;
   padding: 0.45rem 0.5rem;
+}
+
+
+.save-tuning-row {
+  margin: 0.4rem 0 0.85rem;
+  display: grid;
+  grid-template-columns: 110px minmax(180px, 260px) auto;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.save-tuning-row label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+#saveTuningBtn {
+  cursor: pointer;
+  font-weight: 600;
 }
 
 .tuning-controls {
@@ -240,6 +261,10 @@ svg {
 }
 
 @media (max-width: 680px) {
+  .save-tuning-row {
+    grid-template-columns: 1fr;
+  }
+
   .tuning-controls {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
   }

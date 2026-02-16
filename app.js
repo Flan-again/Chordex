@@ -4,6 +4,7 @@ const STANDARD_TUNING = [4, 9, 2, 7, 11, 4];
 const MAX_FRET = 15;
 const VOICINGS_PER_CHORD = 4;
 const MAX_TUNING_OFFSET = 8;
+const SAVED_TUNINGS_COOKIE = 'chordex_saved_tunings';
 
 const PRESETS = {
   'E Standard': [0, 0, 0, 0, 0, 0],
@@ -13,6 +14,8 @@ const PRESETS = {
   'Half Step Down': [-1, -1, -1, -1, -1, -1],
   Custom: null,
 };
+
+const savedTunings = {};
 
 const CHORD_TYPES = [
   { name: 'Major', suffix: '', intervals: [0, 4, 7] },
@@ -59,13 +62,14 @@ const els = {
   tuningControls: document.getElementById('tuningControls'),
   rootSelect: document.getElementById('rootSelect'),
   chordModeSelect: document.getElementById('chordModeSelect'),
-  keyModeSelect: document.getElementById('keyModeSelect'),
-  scaleTypeSelect: document.getElementById('scaleTypeSelect'),
+  harmonyScaleSelect: document.getElementById('harmonyScaleSelect'),
   diagramGrid: document.getElementById('diagramGrid'),
   tuningSummary: document.getElementById('tuningSummary'),
   presetSelect: document.getElementById('presetSelect'),
   fretboardWrap: document.getElementById('fretboardWrap'),
   fretboardLegend: document.getElementById('fretboardLegend'),
+  tuningNameInput: document.getElementById('tuningNameInput'),
+  saveTuningBtn: document.getElementById('saveTuningBtn'),
 };
 
 function noteName(pc) {
@@ -89,33 +93,54 @@ function setupRootOptions() {
 
 function setupMusicSelectors() {
   els.chordModeSelect.value = state.chordMode;
-  els.keyModeSelect.value = state.keyMode;
+  els.harmonyScaleSelect.innerHTML = '';
 
+  const harmonyGroup = document.createElement('optgroup');
+  harmonyGroup.label = 'Key harmony (for key chords)';
+  Object.entries(SCALE_CHORDS).forEach(([key, value]) => {
+    const option = document.createElement('option');
+    option.value = `harmony:${key}`;
+    option.textContent = `${value.label} harmony`;
+    harmonyGroup.append(option);
+  });
+
+  const scaleGroup = document.createElement('optgroup');
+  scaleGroup.label = 'Fretboard scale';
   Object.entries(SCALE_LIBRARY).forEach(([key, value]) => {
     const option = document.createElement('option');
-    option.value = key;
+    option.value = `scale:${key}`;
     option.textContent = value.label;
-    els.scaleTypeSelect.append(option);
+    scaleGroup.append(option);
   });
-  els.scaleTypeSelect.value = state.scaleType;
+
+  els.harmonyScaleSelect.append(harmonyGroup, scaleGroup);
+  els.harmonyScaleSelect.value = `harmony:${state.keyMode}`;
 
   els.chordModeSelect.addEventListener('change', () => {
     state.chordMode = els.chordModeSelect.value;
     render();
   });
 
-  els.keyModeSelect.addEventListener('change', () => {
-    state.keyMode = els.keyModeSelect.value;
-    render();
-  });
-
-  els.scaleTypeSelect.addEventListener('change', () => {
-    state.scaleType = els.scaleTypeSelect.value;
+  els.harmonyScaleSelect.addEventListener('change', () => {
+    const [type, value] = els.harmonyScaleSelect.value.split(':');
+    if (type === 'harmony' && SCALE_CHORDS[value]) {
+      state.keyMode = value;
+    }
+    if (type === 'scale' && SCALE_LIBRARY[value]) {
+      state.scaleType = value;
+    }
     render();
   });
 }
 
-function setupPresetSelect() {
+function getSavedTuningOptions() {
+  return Object.entries(savedTunings).sort(([a], [b]) => a.localeCompare(b));
+}
+
+function syncPresetOptions() {
+  const previousValue = els.presetSelect.value;
+  els.presetSelect.innerHTML = '';
+
   Object.keys(PRESETS).forEach((presetName) => {
     const option = document.createElement('option');
     option.value = presetName;
@@ -123,15 +148,75 @@ function setupPresetSelect() {
     els.presetSelect.append(option);
   });
 
-  els.presetSelect.value = 'E Standard';
+  const savedOptions = getSavedTuningOptions();
+  if (savedOptions.length) {
+    const group = document.createElement('optgroup');
+    group.label = 'Saved tunings';
+    savedOptions.forEach(([presetName]) => {
+      const option = document.createElement('option');
+      option.value = presetName;
+      option.textContent = presetName;
+      group.append(option);
+    });
+    els.presetSelect.append(group);
+  }
+
+  const values = Array.from(els.presetSelect.options).map((option) => option.value);
+  els.presetSelect.value = previousValue && values.includes(previousValue) ? previousValue : 'E Standard';
+}
+
+function setupPresetSelect() {
+  syncPresetOptions();
   els.presetSelect.addEventListener('change', () => {
-    const preset = PRESETS[els.presetSelect.value];
+    const preset = PRESETS[els.presetSelect.value] || savedTunings[els.presetSelect.value];
     if (!preset) {
       return;
     }
     state.offsets = [...preset];
     syncTuningControls();
     render();
+  });
+}
+
+function writeSavedTuningsCookie() {
+  const value = encodeURIComponent(JSON.stringify(savedTunings));
+  document.cookie = `${SAVED_TUNINGS_COOKIE}=${value}; max-age=${60 * 60 * 24 * 365}; path=/; samesite=lax`;
+}
+
+function loadSavedTuningsFromCookie() {
+  const entry = document.cookie
+    .split(';')
+    .map((item) => item.trim())
+    .find((item) => item.startsWith(`${SAVED_TUNINGS_COOKIE}=`));
+
+  if (!entry) return;
+
+  try {
+    const raw = entry.slice(SAVED_TUNINGS_COOKIE.length + 1);
+    const parsed = JSON.parse(decodeURIComponent(raw));
+    if (!parsed || typeof parsed !== 'object') return;
+
+    Object.entries(parsed).forEach(([name, offsets]) => {
+      if (!Array.isArray(offsets) || offsets.length !== 6) return;
+      if (offsets.some((value) => typeof value !== 'number' || Number.isNaN(value))) return;
+      if (PRESETS[name]) return;
+      savedTunings[name] = offsets.map((value) => Math.max(-MAX_TUNING_OFFSET, Math.min(MAX_TUNING_OFFSET, Math.round(value))));
+    });
+  } catch (_error) {
+    // Ignore malformed cookie content.
+  }
+}
+
+function setupSaveTuning() {
+  els.saveTuningBtn.addEventListener('click', () => {
+    const name = els.tuningNameInput.value.trim();
+    if (!name) return;
+
+    savedTunings[name] = [...state.offsets];
+    writeSavedTuningsCookie();
+    syncPresetOptions();
+    els.presetSelect.value = name;
+    els.tuningNameInput.value = '';
   });
 }
 
@@ -278,17 +363,20 @@ function findChordVoicings(rootPc, intervals, tuningPitches, maxFret = MAX_FRET,
       if (muteCount > 3) return;
 
       const frettedCount = fretted.length;
+      if (frettedCount > 4) return;
       const soundingCount = sounding.length;
       const openCount = candidate.filter((f) => f === 0).length;
       const avgFret = frettedCount ? fretted.reduce((sum, fret) => sum + fret, 0) / frettedCount : 0;
+      const missingChordTones = Math.max(0, chordSet.size - uniqueNotes.size);
 
       const score =
-        frettedCount * 10 +
-        soundingCount * 1.5 +
-        muteCount * 1.2 +
-        span * 0.7 +
+        muteCount * 5 +
+        missingChordTones * 9 +
+        (6 - soundingCount) * 4 +
+        Math.max(0, frettedCount - 3) * 2 +
+        span * 1.1 +
         Math.abs(avgFret - Math.max(2, baseFret)) * 0.2 -
-        openCount * 0.35;
+        openCount * 0.8;
 
       if (!bestShape || score < bestShape.score) {
         bestShape = { frets: [...candidate], score, minFret, maxUsedFret, baseFret };
@@ -365,7 +453,7 @@ function buildDiagramSvg(shape, rootPc, tuningPitches) {
       return;
     }
 
-    if (fret === 0 && startFret === 1) {
+    if (fret === 0) {
       svg += `<text x="${x}" y="30" text-anchor="middle" fill="#8de8cd" font-size="16" font-weight="700">O</text>`;
     }
 
@@ -573,6 +661,8 @@ function render() {
 
 setupRootOptions();
 setupMusicSelectors();
+loadSavedTuningsFromCookie();
 setupPresetSelect();
 setupTuningControls();
+setupSaveTuning();
 render();

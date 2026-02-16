@@ -354,13 +354,14 @@ function findChordVoicings(rootPc, intervals, tuningPitches, maxFret = MAX_FRET,
       const minFret = fretted.length ? Math.min(...fretted) : 0;
       const maxUsedFret = fretted.length ? Math.max(...fretted) : 0;
       const span = maxUsedFret - minFret;
-      if (span > 4) return;
+      if (span > 3) return;
 
       const uniqueNotes = new Set(soundedPitchClasses);
       if (uniqueNotes.size < Math.min(3, intervals.length)) return;
 
       const muteCount = candidate.filter((f) => f < 0).length;
       if (muteCount > 3) return;
+      const hardToMuteCount = candidate.filter((f, stringIndex) => f < 0 && stringIndex >= 1 && stringIndex <= 3).length;
 
       const frettedCount = fretted.length;
       if (frettedCount > 4) return;
@@ -371,6 +372,7 @@ function findChordVoicings(rootPc, intervals, tuningPitches, maxFret = MAX_FRET,
 
       const score =
         muteCount * 5 +
+        hardToMuteCount * 6 +
         missingChordTones * 9 +
         (6 - soundingCount) * 4 +
         Math.max(0, frettedCount - 3) * 2 +
@@ -426,7 +428,8 @@ function buildDiagramSvg(shape, rootPc, tuningPitches) {
 
   const fretted = shape.filter((f) => f > 0);
   const minFretted = fretted.length ? Math.min(...fretted) : 1;
-  const startFret = minFretted > 5 ? minFretted : 1;
+  const maxFretted = fretted.length ? Math.max(...fretted) : 1;
+  const startFret = Math.max(1, Math.min(minFretted, maxFretted - 4));
 
   let svg = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Chord diagram">`;
 

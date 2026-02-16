@@ -8,7 +8,6 @@
   --accent: #70b7ff;
   --accent-2: #67f0c7;
   --danger: #ff8f9b;
-  --line: #4f5d9a;
 }
 
 * {
@@ -18,14 +17,13 @@
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
-    Arial, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   color: var(--text);
   background: radial-gradient(circle at top, #1d2959 0%, var(--bg) 48%);
 }
 
 .app {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 1.5rem;
   display: grid;
@@ -118,7 +116,7 @@ input[type='range'] {
 
 .diagram-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: 1fr;
   gap: 1rem;
 }
 
@@ -130,13 +128,40 @@ input[type='range'] {
 }
 
 .diagram-card h3 {
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.65rem;
 }
 
 .diagram-card p {
   margin: 0.35rem 0 0;
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.voicing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.75rem;
+}
+
+.voicing-item {
+  padding: 0.45rem;
+  border: 1px solid #304080;
+  border-radius: 10px;
+  background: #0d1432;
+}
+
+.voicing-label {
+  margin: 0 0 0.35rem;
+  color: #d7ddff;
+  font-weight: 700;
+}
+
+.fretboard-wrap {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #2f3c79;
+  padding: 0.5rem;
+  background: #0f1635;
 }
 
 svg {

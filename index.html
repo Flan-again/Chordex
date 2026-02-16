@@ -10,7 +10,7 @@
     <main class="app">
       <header>
         <h1>Chordex</h1>
-        <p>Explore chord diagrams for any tuning within ±3 tones per string.</p>
+        <p>Explore chord voicings and scale maps for any tuning within ±3 tones per string.</p>
       </header>
 
       <section class="panel tuning-panel">
@@ -25,19 +25,29 @@
       </section>
 
       <section class="panel options-panel">
-        <h2>Chord Options</h2>
+        <h2>Music Options</h2>
         <div class="options-grid">
           <label>
-            Root note
+            Key
             <select id="rootSelect"></select>
           </label>
           <label>
-            Fret search range
-            <select id="rangeSelect">
-              <option value="7">Frets 0–7</option>
-              <option value="9" selected>Frets 0–9</option>
-              <option value="12">Frets 0–12</option>
+            Chord display
+            <select id="chordModeSelect">
+              <option value="types">Chord families (maj/min/7/etc)</option>
+              <option value="scale">All chords in key</option>
             </select>
+          </label>
+          <label>
+            Key harmony
+            <select id="keyModeSelect">
+              <option value="major">Major</option>
+              <option value="minor">Minor</option>
+            </select>
+          </label>
+          <label>
+            Fretboard scale
+            <select id="scaleTypeSelect"></select>
           </label>
         </div>
       </section>
@@ -46,6 +56,12 @@
         <h2>Chord Diagrams</h2>
         <p id="tuningSummary" class="tuning-summary"></p>
         <div id="diagramGrid" class="diagram-grid"></div>
+      </section>
+
+      <section class="panel fretboard-panel">
+        <h2>Scale Fretboard (0–15)</h2>
+        <p class="tuning-summary">Bass strings are shown at the bottom. Colors emphasize root, 3rd, 4th, and 5th.</p>
+        <div id="fretboardWrap" class="fretboard-wrap"></div>
       </section>
     </main>
 

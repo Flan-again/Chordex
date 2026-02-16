@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chordex - Guitar Chord & Scale Utility</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>Chordex</h1>
+        <p>Explore chord diagrams for any tuning within ±3 tones per string.</p>
+      </header>
+
+      <section class="panel tuning-panel">
+        <div class="panel-title-row">
+          <h2>Tuning</h2>
+          <div class="preset-row">
+            <label for="presetSelect">Preset</label>
+            <select id="presetSelect"></select>
+          </div>
+        </div>
+        <div id="tuningControls" class="tuning-controls"></div>
+      </section>
+
+      <section class="panel options-panel">
+        <h2>Chord Options</h2>
+        <div class="options-grid">
+          <label>
+            Root note
+            <select id="rootSelect"></select>
+          </label>
+          <label>
+            Fret search range
+            <select id="rangeSelect">
+              <option value="7">Frets 0–7</option>
+              <option value="9" selected>Frets 0–9</option>
+              <option value="12">Frets 0–12</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel diagrams-panel">
+        <h2>Chord Diagrams</h2>
+        <p id="tuningSummary" class="tuning-summary"></p>
+        <div id="diagramGrid" class="diagram-grid"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

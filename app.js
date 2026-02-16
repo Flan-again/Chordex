@@ -3,6 +3,7 @@ const STRING_NAMES = ['6 (Low E)', '5 (A)', '4 (D)', '3 (G)', '2 (B)', '1 (High 
 const STANDARD_TUNING = [4, 9, 2, 7, 11, 4];
 const MAX_FRET = 15;
 const VOICINGS_PER_CHORD = 4;
+const MAX_TUNING_OFFSET = 8;
 
 const PRESETS = {
   'E Standard': [0, 0, 0, 0, 0, 0],
@@ -64,6 +65,7 @@ const els = {
   tuningSummary: document.getElementById('tuningSummary'),
   presetSelect: document.getElementById('presetSelect'),
   fretboardWrap: document.getElementById('fretboardWrap'),
+  fretboardLegend: document.getElementById('fretboardLegend'),
 };
 
 function noteName(pc) {
@@ -141,8 +143,18 @@ function getTuningDescription() {
   return getTuningPitches().map((pc) => noteName(pc)).join(' - ');
 }
 
+function updateOffset(index, delta) {
+  const next = Math.max(-MAX_TUNING_OFFSET, Math.min(MAX_TUNING_OFFSET, state.offsets[index] + delta));
+  if (next === state.offsets[index]) return;
+  state.offsets[index] = next;
+  els.presetSelect.value = 'Custom';
+  syncTuningControls();
+  render();
+}
+
 function setupTuningControls() {
   els.tuningControls.innerHTML = '';
+
   STRING_NAMES.forEach((name, index) => {
     const row = document.createElement('div');
     row.className = 'string-row';
@@ -151,26 +163,37 @@ function setupTuningControls() {
     label.className = 'string-label';
     label.textContent = name;
 
-    const slider = document.createElement('input');
-    slider.type = 'range';
-    slider.min = '-6';
-    slider.max = '6';
-    slider.step = '1';
-    slider.value = String(state.offsets[index]);
-    slider.dataset.index = String(index);
+    const note = document.createElement('div');
+    note.className = 'tuning-note';
+
+    const arrows = document.createElement('div');
+    arrows.className = 'tuning-arrows';
+
+    const downBtn = document.createElement('button');
+    downBtn.type = 'button';
+    downBtn.className = 'arrow-btn';
+    downBtn.textContent = '↓';
+    downBtn.dataset.index = String(index);
+    downBtn.dataset.delta = '-1';
+
+    const upBtn = document.createElement('button');
+    upBtn.type = 'button';
+    upBtn.className = 'arrow-btn';
+    upBtn.textContent = '↑';
+    upBtn.dataset.index = String(index);
+    upBtn.dataset.delta = '1';
 
     const value = document.createElement('div');
     value.className = 'offset-value';
 
-    slider.addEventListener('input', () => {
-      const i = Number(slider.dataset.index);
-      state.offsets[i] = Number(slider.value);
-      value.textContent = `${formatOffset(state.offsets[i])} → ${noteName(getTuningPitches()[i])}`;
-      els.presetSelect.value = 'Custom';
-      render();
+    [downBtn, upBtn].forEach((button) => {
+      button.addEventListener('click', () => {
+        updateOffset(Number(button.dataset.index), Number(button.dataset.delta));
+      });
     });
 
-    row.append(label, slider, value);
+    arrows.append(downBtn, upBtn);
+    row.append(label, note, arrows, value);
     els.tuningControls.append(row);
   });
 
@@ -180,18 +203,25 @@ function setupTuningControls() {
 function syncTuningControls() {
   const tuning = getTuningPitches();
   const rows = Array.from(els.tuningControls.children);
+
   rows.forEach((row, i) => {
-    const slider = row.querySelector('input[type="range"]');
+    const note = row.querySelector('.tuning-note');
     const value = row.querySelector('.offset-value');
-    slider.value = String(state.offsets[i]);
-    value.textContent = `${formatOffset(state.offsets[i])} → ${noteName(tuning[i])}`;
+    const downBtn = row.querySelector('[data-delta="-1"]');
+    const upBtn = row.querySelector('[data-delta="1"]');
+
+    note.textContent = noteName(tuning[i]);
+    value.textContent = formatOffset(state.offsets[i]);
+    downBtn.disabled = state.offsets[i] <= -MAX_TUNING_OFFSET;
+    upBtn.disabled = state.offsets[i] >= MAX_TUNING_OFFSET;
   });
 }
 
 function formatOffset(offset) {
-  if (offset === 0) return '0 st';
-  const sign = offset > 0 ? '+' : '';
-  return `${sign}${offset} st`;
+  if (offset === 0) return '±0 tones';
+  const sign = offset > 0 ? '+' : '-';
+  const tones = Math.abs(offset) / 2;
+  return `${sign}${tones % 1 === 0 ? tones.toFixed(0) : tones.toFixed(1)} tones`;
 }
 
 function chordPitchClasses(rootPc, intervals) {
@@ -201,27 +231,24 @@ function chordPitchClasses(rootPc, intervals) {
 function findChordVoicings(rootPc, intervals, tuningPitches, maxFret = MAX_FRET, maxResults = VOICINGS_PER_CHORD) {
   const chordNotes = chordPitchClasses(rootPc, intervals);
   const chordSet = new Set(chordNotes);
-  const candidates = [];
-  const seen = new Set();
+  const bestByPosition = [];
 
   for (let baseFret = 0; baseFret <= maxFret; baseFret += 1) {
     const optionsPerString = tuningPitches.map((openPc) => {
       const options = [-1];
-      if (baseFret === 0 && chordSet.has(openPc)) {
-        options.push(0);
-      }
+      if (chordSet.has(openPc)) options.push(0);
 
       const start = Math.max(1, baseFret);
       const end = Math.min(baseFret + 4, maxFret);
       for (let fret = start; fret <= end; fret += 1) {
-        const pitch = (openPc + fret) % 12;
-        if (chordSet.has(pitch)) options.push(fret);
+        if (chordSet.has((openPc + fret) % 12)) options.push(fret);
       }
 
       return [...new Set(options)];
     });
 
     const shape = new Array(6).fill(-1);
+    let bestShape = null;
 
     function evaluateShape(candidate) {
       const sounding = [];
@@ -250,21 +277,22 @@ function findChordVoicings(rootPc, intervals, tuningPitches, maxFret = MAX_FRET,
       const muteCount = candidate.filter((f) => f < 0).length;
       if (muteCount > 3) return;
 
-      const missingChordTones = Math.max(0, intervals.length - uniqueNotes.size);
-      const avgFret = fretted.length > 0 ? fretted.reduce((sum, fret) => sum + fret, 0) / fretted.length : 0;
+      const frettedCount = fretted.length;
+      const soundingCount = sounding.length;
+      const openCount = candidate.filter((f) => f === 0).length;
+      const avgFret = frettedCount ? fretted.reduce((sum, fret) => sum + fret, 0) / frettedCount : 0;
 
       const score =
-        muteCount * 2 +
-        missingChordTones * 3 +
-        span * 1.2 +
-        Math.abs(avgFret - 3) * 0.15 +
-        baseFret * 0.08;
+        frettedCount * 10 +
+        soundingCount * 1.5 +
+        muteCount * 1.2 +
+        span * 0.7 +
+        Math.abs(avgFret - Math.max(2, baseFret)) * 0.2 -
+        openCount * 0.35;
 
-      const key = candidate.join(',');
-      if (seen.has(key)) return;
-      seen.add(key);
-
-      candidates.push({ frets: [...candidate], score, minFret, maxUsedFret });
+      if (!bestShape || score < bestShape.score) {
+        bestShape = { frets: [...candidate], score, minFret, maxUsedFret, baseFret };
+      }
     }
 
     function dfs(stringIndex) {
@@ -280,10 +308,24 @@ function findChordVoicings(rootPc, intervals, tuningPitches, maxFret = MAX_FRET,
     }
 
     dfs(0);
+    if (bestShape) {
+      bestByPosition.push(bestShape);
+    }
   }
 
-  candidates.sort((a, b) => a.score - b.score || a.minFret - b.minFret);
-  return candidates.slice(0, maxResults);
+  const deduped = [];
+  const seen = new Set();
+
+  bestByPosition
+    .sort((a, b) => a.minFret - b.minFret || a.baseFret - b.baseFret || a.score - b.score)
+    .forEach((candidate) => {
+      const key = candidate.frets.join(',');
+      if (seen.has(key)) return;
+      seen.add(key);
+      deduped.push(candidate);
+    });
+
+  return deduped.slice(0, maxResults);
 }
 
 function buildDiagramSvg(shape, rootPc, tuningPitches) {
@@ -400,7 +442,7 @@ function renderDiagrams() {
 
         const label = document.createElement('p');
         label.className = 'voicing-label';
-        label.textContent = `Voicing ${voicingIndex + 1}`;
+        label.textContent = `Voicing ${voicingIndex + 1} · Position ${voicing.minFret || 0}`;
 
         const svgWrap = document.createElement('div');
         svgWrap.innerHTML = buildDiagramSvg(voicing.frets, chord.rootPc, tuning);
@@ -468,26 +510,18 @@ function buildScaleFretboardSvg(rootPc, tuningPitches, scale) {
 
       const x = leftPad + fret * fretSpacing;
       let fill = '#7da8d8';
-      let label = '';
 
       if (pitch === rootTone) {
         fill = '#ff9f67';
-        label = 'R';
       } else if (pitch === thirdTone) {
         fill = '#a6e56a';
-        label = '3';
       } else if (pitch === fourthTone) {
         fill = '#76e0e0';
-        label = '4';
       } else if (pitch === fifthTone) {
         fill = '#dca7ff';
-        label = '5';
       }
 
       svg += `<circle cx="${x}" cy="${y}" r="10.5" fill="${fill}" stroke="#0e1230" stroke-width="1.2" />`;
-      if (label) {
-        svg += `<text x="${x}" y="${y + 3.5}" text-anchor="middle" fill="#0e1230" font-size="10" font-weight="800">${label}</text>`;
-      }
     }
 
     svg += `<text x="20" y="${y + 4}" fill="#d2d9ff" font-size="12">${noteName(openPc)}</text>`;
@@ -495,6 +529,32 @@ function buildScaleFretboardSvg(rootPc, tuningPitches, scale) {
 
   svg += '</svg>';
   return svg;
+}
+
+function renderFretboardLegend() {
+  const legendItems = [
+    { label: 'Root', color: '#ff9f67' },
+    { label: '3rd', color: '#a6e56a' },
+    { label: '4th', color: '#76e0e0' },
+    { label: '5th', color: '#dca7ff' },
+    { label: 'Other scale tones', color: '#7da8d8' },
+  ];
+
+  els.fretboardLegend.innerHTML = '';
+  legendItems.forEach((item) => {
+    const chip = document.createElement('span');
+    chip.className = 'legend-item';
+
+    const swatch = document.createElement('span');
+    swatch.className = 'legend-swatch';
+    swatch.style.background = item.color;
+
+    const label = document.createElement('span');
+    label.textContent = item.label;
+
+    chip.append(swatch, label);
+    els.fretboardLegend.append(chip);
+  });
 }
 
 function renderFretboard() {
@@ -508,6 +568,7 @@ function render() {
   els.tuningSummary.textContent = `Current tuning (6→1): ${getTuningDescription()} · ${noteName(state.root)} · ${modeLabel}`;
   renderDiagrams();
   renderFretboard();
+  renderFretboardLegend();
 }
 
 setupRootOptions();

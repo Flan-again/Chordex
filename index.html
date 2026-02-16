@@ -21,6 +21,11 @@
             <select id="presetSelect"></select>
           </div>
         </div>
+        <div class="save-tuning-row">
+          <label for="tuningNameInput">Save tuning</label>
+          <input id="tuningNameInput" type="text" maxlength="32" placeholder="My tuning" />
+          <button id="saveTuningBtn" type="button">Save</button>
+        </div>
         <div id="tuningControls" class="tuning-controls"></div>
       </section>
 
@@ -39,15 +44,8 @@
             </select>
           </label>
           <label>
-            Key harmony
-            <select id="keyModeSelect">
-              <option value="major">Major</option>
-              <option value="minor">Minor</option>
-            </select>
-          </label>
-          <label>
-            Fretboard scale
-            <select id="scaleTypeSelect"></select>
+            Harmony / Scale
+            <select id="harmonyScaleSelect"></select>
           </label>
         </div>
       </section>

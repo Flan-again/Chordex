@@ -18,6 +18,9 @@ const SCALE_LIBRARY = {
   mixolydian: { label: 'Mixolydian', intervals: [0, 2, 4, 5, 7, 9, 10], degrees: [0, 2, 4, 5, 7, 9, 10], third: 4 },
 };
 
+const DEGREE_LABELS = ['Root', '2nd', '3rd', '4th', '5th', '6th', '7th'];
+const DEGREE_COLORS = ['#ff9f67', '#7ee081', '#72d5ff', '#d9b3ff', '#ffd66d', '#ff8ab4', '#8fa8ff'];
+
 const PRESETS = { 'E Standard': [0, 0, 0, 0, 0, 0], 'Drop D': [-2, 0, 0, 0, 0, 0], 'D Standard': [-2, -2, -2, -2, -2, -2], Custom: null };
 
 const CHORD_FAMILY_OPTIONS = [
@@ -52,7 +55,7 @@ const state = {
 
 const els = {
   tuningControls: document.getElementById('tuningControls'), rootSelect: document.getElementById('rootSelect'), scaleSelect: document.getElementById('scaleSelect'),
-  diagramGrid: document.getElementById('diagramGrid'), tuningSummary: document.getElementById('tuningSummary'), presetSelect: document.getElementById('presetSelect'),
+  diagramGrid: document.getElementById('diagramGrid'), presetSelect: document.getElementById('presetSelect'),
   fretboardWrap: document.getElementById('fretboardWrap'), fretboardLegend: document.getElementById('fretboardLegend'), tuningNameInput: document.getElementById('tuningNameInput'),
   saveTuningBtn: document.getElementById('saveTuningBtn'), chordSizeSwitch: document.getElementById('chordSizeSwitch'), scaleChordButtons: document.getElementById('scaleChordButtons'),
   chordModeButtons: document.getElementById('chordModeButtons'), specificChordControls: document.getElementById('specificChordControls'),
@@ -101,11 +104,11 @@ function renderTuningControls() {
   });
 }
 
-function degreeLabel(n) { return ['Root', '2nd', '3rd', '4th', '5th', '6th', '7th'][n] || `${n + 1}th`; }
+function degreeLabelFromIndex(index) { return DEGREE_LABELS[index] || `${index + 1}th`; }
 
 function getScalePcData() {
   const scale = SCALE_LIBRARY[state.scaleType];
-  return scale.intervals.map((interval, i) => ({ degree: i, interval, pc: (state.root + interval) % 12, label: degreeLabel(i + 0), color: i === 0 ? '#ff9f67' : '#98bcff' }));
+  return scale.intervals.map((interval, i) => ({ degree: i, interval, pc: (state.root + interval) % 12, label: degreeLabelFromIndex(i), color: DEGREE_COLORS[i % DEGREE_COLORS.length] }));
 }
 
 function renderLegend() {
@@ -114,7 +117,7 @@ function renderLegend() {
   els.fretboardLegend.innerHTML = '';
   pcs.forEach((item, idx) => {
     const chip = document.createElement('button'); chip.className = `legend-item ${state.selectedLegend.has(item.pc) ? '' : 'off'}`;
-    chip.innerHTML = `<span>${idx === 0 ? 'Root' : degreeLabel(idx + 1)}</span><span class="legend-dot" style="background:${idx === 0 ? '#ff9f67' : 'transparent'};border:2px solid ${item.color};color:${idx===0?'#1a2140':item.color}">${noteName(item.pc)}</span>`;
+    chip.innerHTML = `<span>${degreeLabelFromIndex(idx)}</span><span class="legend-dot" style="background:${item.color};border:2px solid ${item.color};color:#1a2140">${noteName(item.pc)}</span>`;
     chip.onclick = () => { if (state.selectedLegend.has(item.pc)) state.selectedLegend.delete(item.pc); else state.selectedLegend.add(item.pc); state.selectedScaleChord = null; renderFretboard(); renderLegend(); };
     els.fretboardLegend.append(chip);
   });
@@ -127,14 +130,18 @@ function scaleChords() {
     const triad = [0, 2, 4, 6].slice(0, state.useFourNoteChords ? 4 : 3).map((jump) => scale.intervals[(idx + jump) % scale.intervals.length]);
     const rel = triad.map((v) => (v - iv + 12) % 12).sort((a, b) => a - b);
     const name = `${noteName(rootPc)}${rel.includes(3) ? 'm' : ''}${state.useFourNoteChords ? '7' : ''}`;
-    return { roman: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][idx] || `${idx + 1}`, name, rootPc, intervals: rel };
+    const chordNotes = rel.map((interval) => noteName((rootPc + interval) % 12));
+    return { roman: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][idx] || `${idx + 1}`, name, rootPc, intervals: rel, chordNotes };
   });
 }
 
 function renderScaleChordButtons() {
   els.scaleChordButtons.innerHTML = '';
   scaleChords().forEach((chord, idx) => {
-    const b = document.createElement('button'); b.textContent = `${chord.roman} ${chord.name}`; b.className = state.selectedScaleChord === idx ? 'active' : '';
+    const b = document.createElement('button');
+    b.textContent = `${chord.roman} ${chord.name}`;
+    const isActive = state.selectedScaleChord === idx;
+    b.className = `${isActive ? 'active' : ''} ${state.selectedScaleChord != null && !isActive ? 'dimmed' : ''}`.trim();
     b.onclick = () => {
       if (state.selectedScaleChord === idx) { state.selectedScaleChord = null; state.selectedLegend = new Set(getScalePcData().map((i) => i.pc)); }
       else { state.selectedScaleChord = idx; state.selectedLegend = new Set(chord.intervals.map((i) => (chord.rootPc + i) % 12)); }
@@ -151,6 +158,8 @@ function renderFretboard() {
   let svg = `<svg viewBox="0 0 ${width} ${height}">`;
   for (let s = 0; s < 6; s++) { const y = top + s * stringSpacing; svg += `<line x1="${left}" y1="${y}" x2="${left + fretSpacing * MAX_FRET}" y2="${y}" stroke="#9aa7e7" stroke-width="${(1 + s * .4).toFixed(2)}" opacity="${active[s] ? 1 : .28}"/>`; }
   for (let f = 0; f <= MAX_FRET; f++) { const x = left + f * fretSpacing; svg += `<line x1="${x}" y1="${top - 16}" x2="${x}" y2="${top + stringSpacing * 5 + 16}" stroke="#8392d9" stroke-width="${f === 0 ? 5 : 2}"/><text x="${x + 2}" y="18" fill="#c5ccf2" font-size="11">${f}</text>`; }
+  const selectedScaleChordData = state.selectedScaleChord == null ? null : scaleChords()[state.selectedScaleChord];
+  const selectedChordRootPc = selectedScaleChordData ? selectedScaleChordData.rootPc : null;
   tuning.forEach((openPc, s) => {
     const y = top + s * stringSpacing;
     for (let f = 0; f <= MAX_FRET; f++) {
@@ -159,6 +168,10 @@ function renderFretboard() {
       if (!state.selectedLegend.has(pc)) continue;
       const x = left + (f + 0.5) * fretSpacing;
       const isRoot = pc === state.root;
+      const isSelectedChordRoot = selectedChordRootPc != null && pc === selectedChordRootPc;
+      if (isSelectedChordRoot) {
+        svg += `<circle cx="${x}" cy="${y}" r="14" fill="#ffffff" opacity="0.28"/>`;
+      }
       svg += isRoot ? `<circle cx="${x}" cy="${y}" r="10" fill="#ff9f67"/>` : `<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="#98bcff" stroke-width="2.5"/>`;
     }
     svg += `<text x="16" y="${y + 4}" fill="#d2d9ff" opacity="${active[s] ? 1 : .38}" font-size="12">${noteName(openPc)}</text>`;
@@ -199,7 +212,8 @@ function findVoicings(rootPc, intervals) {
       if (![...uniq].every((pc) => chordSet.has(pc))) return;
       if (intervals.length >= 3 && uniq.size < 3) return;
       const fretted = sounding.map((x) => x.f).filter((f) => f > 0);
-      if (fretted.length && Math.max(...fretted) - Math.min(...fretted) > 4) return;
+      const soundingFrets = sounding.map((x) => x.f);
+      if (soundingFrets.length && Math.max(...soundingFrets) - Math.min(...soundingFrets) > 4) return;
       const soundingStrings = sounding.map((x) => x.s);
       const lowestString = Math.min(...soundingStrings);
       const highestString = Math.max(...soundingStrings);
@@ -211,6 +225,10 @@ function findVoicings(rootPc, intervals) {
           if (hasNoteInRange(s, minWindowFret, maxWindowFret)) return;
           innerMutedStrings += 1;
         }
+      }
+      for (let s = highestString + 1; s < 6; s++) {
+        if (shape[s] !== -1 || !state.activeStrings[s]) break;
+        if (chordSet.has(tuning[s])) return;
       }
       const lowest = pcs[0];
       const maxFret = fretted.length ? Math.max(...fretted) : 0;
@@ -259,7 +277,7 @@ function buildChordList() {
   if (state.chordMode === 'families') {
     return CHORD_FAMILY_OPTIONS.map((f) => ({ id: f.label, title: `${noteName(state.root)}${f.suffix || ''} (${f.label})`, rootPc: state.root, intervals: f.intervals }));
   }
-  return chords.map((c, i) => ({ id: `scale-${i}`, title: `${c.roman} · ${c.name}`, rootPc: c.rootPc, intervals: c.intervals }));
+  return chords.map((c, i) => ({ id: `scale-${i}`, title: `${c.roman} · ${c.name} (${c.chordNotes.join(', ')})`, rootPc: c.rootPc, intervals: c.intervals }));
 }
 
 function renderSpecificControls() {
@@ -302,7 +320,7 @@ function renderDiagrams() {
       const headRow = document.createElement('div'); headRow.className = 'voicing-row-head'; headRow.innerHTML = `<small>${voicings.length} voicings</small>`;
       const nav = document.createElement('div'); nav.className = 'voicing-nav'; const prev = document.createElement('button'); prev.textContent = '←'; prev.disabled = page === 0; prev.onclick = () => { state.paging[chord.id] = Math.max(0, page - 1); renderDiagrams(); }; const next = document.createElement('button'); next.textContent = '→'; next.disabled = (page + 1) * perPage >= voicings.length; next.onclick = () => { state.paging[chord.id] = page + 1; renderDiagrams(); }; nav.append(prev, next); headRow.append(nav); card.append(headRow);
       const grid = document.createElement('div'); grid.className = 'voicing-grid';
-      voicings.slice(page * perPage, page * perPage + perPage).forEach((v, i) => { const item = document.createElement('div'); item.className = 'voicing-item'; const l = document.createElement('p'); l.className = 'voicing-label'; l.textContent = `Voicing ${page * perPage + i + 1}`; const sw = document.createElement('div'); sw.innerHTML = buildDiagramSvg(v.frets, chord.rootPc, chord.intervals); const sh = document.createElement('p'); sh.className = 'shape-line'; sh.textContent = `${v.frets.map((f) => (f < 0 ? 'x' : f)).join(' - ')}`; item.append(l, sw, sh); grid.append(item); });
+      voicings.slice(page * perPage, page * perPage + perPage).forEach((v) => { const item = document.createElement('div'); item.className = 'voicing-item'; const sw = document.createElement('div'); sw.innerHTML = buildDiagramSvg(v.frets, chord.rootPc, chord.intervals); const sh = document.createElement('p'); sh.className = 'shape-line'; sh.textContent = `${v.frets.map((f) => (f < 0 ? 'x' : f)).join(' - ')}`; item.append(sw, sh); grid.append(item); });
       card.append(grid);
     }
     els.diagramGrid.append(card);
@@ -329,8 +347,6 @@ function render() {
   renderScaleChordButtons();
   renderFretboard();
   renderDiagrams();
-  const modeLabel = state.chordMode === 'all' ? 'All chords in key' : state.chordMode === 'families' ? 'Chord families' : 'Specific chord';
-  els.tuningSummary.textContent = `Current tuning (6→1): ${getTuningPitches().map(noteName).join(' - ')} · ${noteName(state.root)} ${SCALE_LIBRARY[state.scaleType].label} · ${modeLabel}`;
 }
 
 setupChordModeButtons();

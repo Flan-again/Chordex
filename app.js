@@ -79,11 +79,44 @@ function setupSelects() {
 function loadSavedTuningsFromCookie() { const entry = document.cookie.split(';').map((s) => s.trim()).find((s) => s.startsWith(`${SAVED_TUNINGS_COOKIE}=`)); if (!entry) return; try { Object.assign(savedTunings, JSON.parse(decodeURIComponent(entry.split('=')[1]))); } catch (_e) {} }
 function writeSavedTuningsCookie() { document.cookie = `${SAVED_TUNINGS_COOKIE}=${encodeURIComponent(JSON.stringify(savedTunings))}; max-age=${60 * 60 * 24 * 365}; path=/; samesite=lax`; }
 function syncPresetOptions() { const prev = els.presetSelect.value; els.presetSelect.innerHTML = ''; Object.keys(PRESETS).forEach((name) => { const o = document.createElement('option'); o.value = name; o.textContent = name; els.presetSelect.append(o); }); Object.keys(savedTunings).forEach((name) => { const o = document.createElement('option'); o.value = name; o.textContent = name; els.presetSelect.append(o); }); els.presetSelect.value = prev || 'E Standard'; }
+function isSameOffsets(a, b) { return a.length === b.length && a.every((value, i) => value === b[i]); }
+function matchingPresetName(offsets) {
+  const presetMatch = Object.entries(PRESETS).find(([name, value]) => name !== 'Custom' && value && isSameOffsets(value, offsets));
+  if (presetMatch) return presetMatch[0];
+  const savedMatch = Object.entries(savedTunings).find(([_name, value]) => isSameOffsets(value, offsets));
+  return savedMatch ? savedMatch[0] : 'Custom';
+}
+function syncTuningSaveState() {
+  const selected = matchingPresetName(state.offsets);
+  els.presetSelect.value = selected;
+  const isCustom = selected === 'Custom';
+  els.tuningNameInput.disabled = !isCustom;
+  els.saveTuningBtn.disabled = !isCustom;
+}
 
 function setupTuning() {
   syncPresetOptions();
-  els.presetSelect.addEventListener('change', () => { const preset = PRESETS[els.presetSelect.value] || savedTunings[els.presetSelect.value]; if (!preset) return; state.offsets = [...preset]; render(); });
-  els.saveTuningBtn.addEventListener('click', () => { const name = els.tuningNameInput.value.trim(); if (!name) return; savedTunings[name] = [...state.offsets]; writeSavedTuningsCookie(); syncPresetOptions(); els.presetSelect.value = name; els.tuningNameInput.value = ''; });
+  syncTuningSaveState();
+  els.presetSelect.addEventListener('change', () => {
+    const preset = PRESETS[els.presetSelect.value] || savedTunings[els.presetSelect.value];
+    if (!preset) {
+      syncTuningSaveState();
+      return;
+    }
+    state.offsets = [...preset];
+    syncTuningSaveState();
+    render();
+  });
+  els.saveTuningBtn.addEventListener('click', () => {
+    const name = els.tuningNameInput.value.trim();
+    if (!name) return;
+    savedTunings[name] = [...state.offsets];
+    writeSavedTuningsCookie();
+    syncPresetOptions();
+    syncTuningSaveState();
+    els.presetSelect.value = name;
+    els.tuningNameInput.value = '';
+  });
 }
 
 function formatOffset(offset) { if (offset === 0) return '±0 tones'; const sign = offset > 0 ? '+' : '-'; return `${sign}${(Math.abs(offset) / 2).toFixed((Math.abs(offset) % 2 === 0) ? 0 : 1)} tones`; }
@@ -94,7 +127,7 @@ function renderTuningControls() {
     const row = document.createElement('div'); row.className = `string-row ${state.activeStrings[i] ? '' : 'inactive'}`;
     row.innerHTML = `<div class="string-label">${name}</div><div class="tuning-note">${noteName(tuning[i])}</div>`;
     const arrows = document.createElement('div'); arrows.className = 'tuning-arrows';
-    [-1, 1].forEach((d) => { const b = document.createElement('button'); b.className = 'arrow-btn'; b.textContent = d < 0 ? '↓' : '↑'; b.disabled = state.offsets[i] <= -MAX_TUNING_OFFSET && d < 0 || state.offsets[i] >= MAX_TUNING_OFFSET && d > 0; b.onclick = () => { state.offsets[i] = Math.max(-MAX_TUNING_OFFSET, Math.min(MAX_TUNING_OFFSET, state.offsets[i] + d)); els.presetSelect.value = 'Custom'; render(); }; arrows.append(b); });
+    [-1, 1].forEach((d) => { const b = document.createElement('button'); b.className = 'arrow-btn'; b.textContent = d < 0 ? '↓' : '↑'; b.disabled = state.offsets[i] <= -MAX_TUNING_OFFSET && d < 0 || state.offsets[i] >= MAX_TUNING_OFFSET && d > 0; b.onclick = () => { state.offsets[i] = Math.max(-MAX_TUNING_OFFSET, Math.min(MAX_TUNING_OFFSET, state.offsets[i] + d)); syncTuningSaveState(); render(); }; arrows.append(b); });
     const toggle = document.createElement('button'); toggle.className = `toggle-btn ${state.activeStrings[i] ? 'active' : ''}`; toggle.innerHTML = `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="2"/>${state.activeStrings[i] ? '<path d="M6 10l3 3 5-6" fill="none" stroke="currentColor" stroke-width="2"/>' : ''}</svg>`;
     toggle.onclick = () => { state.activeStrings[i] = !state.activeStrings[i]; render(); };
     const value = document.createElement('div'); value.className = 'offset-value'; value.textContent = formatOffset(state.offsets[i]);

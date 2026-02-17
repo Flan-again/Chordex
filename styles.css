@@ -24,7 +24,36 @@ label { color:var(--muted); font-size:.9rem; display:grid; gap:.35rem; }
 .options-grid select { width:100%; min-height:2.35rem; }
 .toggle-field { display:grid; gap:.35rem; }
 .switch-label { display:flex; align-items:center; justify-content:center; min-height:2.35rem; width:100%; padding:.45rem .55rem; border:1px solid #31407d; border-radius:8px; background:#10173a; }
-.save-tuning-row { margin: .4rem 0 .85rem; display:grid; grid-template-columns:110px minmax(180px,260px) auto; gap:.5rem; align-items:end; }
+.save-tuning-row { margin: .4rem 0 .85rem; display:grid; grid-template-columns:minmax(180px, 1fr) minmax(220px, 1fr); gap:.6rem; align-items:end; }
+.save-tuning-row #presetSelect {
+  width: 100%;
+  min-height: 2.45rem;
+  padding: .52rem .65rem;
+  border-color: #4f62b7;
+  background: linear-gradient(180deg, #141d46, #101736);
+  font-weight: 600;
+}
+.save-tuning-row .tuning-save-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(68px, 14%);
+  gap: .5rem;
+}
+.save-tuning-row #tuningNameInput {
+  width: 100%;
+  min-height: 2.45rem;
+  padding: .52rem .65rem;
+}
+.save-tuning-row #saveTuningBtn {
+  min-height: 2.45rem;
+  padding: .5rem .6rem;
+  border-color: #4d9fe8;
+  background: linear-gradient(180deg, #1f5a8f, #184973);
+  font-weight: 700;
+}
+.save-tuning-row #saveTuningBtn:disabled,
+.save-tuning-row #tuningNameInput:disabled {
+  opacity: .55;
+}
 .tuning-controls { display:grid; grid-template-columns: repeat(6, minmax(110px,1fr)); gap:.65rem; }
 .string-row { display:flex; flex-direction:column; gap:.35rem; align-items:center; padding:.55rem; border-radius:10px; background:#111737; border:1px solid #2a3569; }
 .string-row.inactive { opacity:.52; }
@@ -66,4 +95,4 @@ svg { width:100%; height:auto; display:block; }
 .voicing-item { border:1px solid #304080; border-radius:10px; background:#0d1432; padding:.35rem; }
 .shape-line { margin:.2rem 0 0; font-size:.8rem; color:var(--muted); text-align:center; }
 @media (max-width: 900px){ .tuning-controls{grid-template-columns:repeat(3,minmax(120px,1fr));} .voicing-grid{grid-template-columns: repeat(3,minmax(150px,1fr));}}
-@media (max-width: 680px){ .save-tuning-row{grid-template-columns:1fr;} .tuning-controls{grid-template-columns:repeat(2,minmax(120px,1fr));} }
+@media (max-width: 680px){ .save-tuning-row{grid-template-columns:1fr;} .save-tuning-row .tuning-save-controls{grid-template-columns:1fr auto;} .tuning-controls{grid-template-columns:repeat(2,minmax(120px,1fr));} }

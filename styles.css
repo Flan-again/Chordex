@@ -16,7 +16,7 @@ header h1 { margin: 0; }
 header p { margin: .35rem 0 0; color: var(--muted); }
 .panel-title-row { display:flex; justify-content:space-between; align-items:center; gap:.8rem; flex-wrap:wrap; }
 .panel h2 { margin:0 0 .75rem; }
-select,input[type='text'],button,input[type='checkbox'] { background:#0f1530; color:var(--text); border:1px solid #3a4787; border-radius:8px; padding:.45rem .5rem; }
+select,input[type='text'],button,input[type='checkbox'] { background:#0f1530; color:var(--text); border:1px solid #3a4787; border-radius:8px; padding:.45rem .5rem; font-size: 12px;}
 button { cursor:pointer; }
 label { color:var(--muted); font-size:.9rem; display:grid; gap:.35rem; }
 .options-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:.8rem; align-items:end; }
@@ -42,7 +42,7 @@ label { color:var(--muted); font-size:.9rem; display:grid; gap:.35rem; }
 .legend-item.missing-degree { cursor:default; }
 .legend-dot { width:1.55rem; height:1.55rem; border-radius:50%; display:grid; place-items:center; font-size:.72rem; font-weight:700; color:#0f1324; }
 .scale-chord-buttons { display:flex; flex-wrap:wrap; gap:.35rem; justify-content:flex-end; }
-.scale-chord-button { width:108px; text-align:center; }
+.scale-chord-button { width:70px; text-align:center; }
 .scale-chord-buttons button.active { border-color:#67f0c7; }
 .scale-chord-buttons button.dimmed { opacity:.45; }
 .fretboard-wrap { overflow:auto; border-radius:10px; border:1px solid #2f3c79; padding:.5rem; background:#0f1635; display:flex; justify-content:center; }

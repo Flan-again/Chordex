@@ -166,7 +166,7 @@ function renderFretboard() {
       if (!active[s]) continue;
       const pc = (openPc + f) % 12;
       if (!state.selectedLegend.has(pc)) continue;
-      const x = left + (f + 0.5) * fretSpacing;
+      const x = f === 0 ? left - 18 : left + (f - 0.5) * fretSpacing;
       const isRoot = pc === state.root;
       const isSelectedChordRoot = selectedChordRootPc != null && pc === selectedChordRootPc;
       if (isSelectedChordRoot) {
@@ -212,8 +212,8 @@ function findVoicings(rootPc, intervals) {
       if (![...uniq].every((pc) => chordSet.has(pc))) return;
       if (intervals.length >= 3 && uniq.size < 3) return;
       const fretted = sounding.map((x) => x.f).filter((f) => f > 0);
-      const soundingFrets = sounding.map((x) => x.f);
-      if (soundingFrets.length && Math.max(...soundingFrets) - Math.min(...soundingFrets) > 4) return;
+      if (fretted.length > 4) return;
+      if (fretted.length && Math.max(...fretted) - Math.min(...fretted) + 1 > 4) return;
       const soundingStrings = sounding.map((x) => x.s);
       const lowestString = Math.min(...soundingStrings);
       const highestString = Math.max(...soundingStrings);
@@ -234,7 +234,8 @@ function findVoicings(rootPc, intervals) {
       const maxFret = fretted.length ? Math.max(...fretted) : 0;
       const minFret = fretted.length ? Math.min(...fretted) : 0;
       const openStrings = sounding.filter((x) => x.f === 0).length;
-      results.push({ frets: [...shape], lowest, minFret, maxFret, span: maxFret - minFret, soundingCount: sounding.length, openStrings, innerMutedStrings });
+      const span = fretted.length ? maxFret - minFret + 1 : 0;
+      results.push({ frets: [...shape], lowest, minFret, maxFret, span, soundingCount: sounding.length, openStrings, innerMutedStrings });
       return;
     }
     for (const f of options[i]) { shape[i] = f; dfs(i + 1); }
@@ -256,7 +257,10 @@ function buildDiagramSvg(shape, rootPc, intervals) {
   if (start > 1) svg += `<text x="8" y="${top + fs + 4}" fill="#c5ccf2" font-size="14" font-weight="700">${start}</text>`;
   shape.forEach((fret, s) => {
     const x = px + s * ss; if (fret === -1) { svg += `<text x="${x}" y="30" text-anchor="middle" fill="#ff9eaa" opacity="${state.activeStrings[s]?1:.28}" font-size="16" font-weight="700">X</text>`; return; }
-    if (fret === 0) svg += `<text x="${x}" y="30" text-anchor="middle" fill="#8de8cd" opacity="${state.activeStrings[s]?1:.28}" font-size="16" font-weight="700">O</text>`;
+    if (fret === 0) {
+      svg += `<circle cx="${x}" cy="30" r="9" fill="none" stroke="#8de8cd" stroke-width="2.5" opacity="${state.activeStrings[s] ? 1 : .28}"/>`;
+      return;
+    }
     const fd = fret - start + 1; if (fd < 1 || fd > 5) return; const y = top + (fd - .5) * fs; const pc = (tuning[s] + fret) % 12; const rel = (pc - rootPc + 12) % 12;
     const label = rel === 0 ? 'R' : rel === intervals[1] ? '3' : rel === 7 ? '5' : '';
     svg += `<circle cx="${x}" cy="${y}" r="10" fill="#70b7ff" opacity="${state.activeStrings[s]?1:.35}"/><text x="${x}" y="${y+4}" text-anchor="middle" fill="#1a2140" opacity=".5" font-size="10">${label}</text>`;

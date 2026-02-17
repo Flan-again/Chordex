@@ -30,36 +30,40 @@
       </section>
 
       <section class="panel options-panel">
-        <h2>Music Options</h2>
+        <h2>Scale</h2>
         <div class="options-grid">
           <label>
             Key
             <select id="rootSelect"></select>
           </label>
           <label>
-            Chord display
-            <select id="chordModeSelect">
-              <option value="types">Chord families (maj/min/7/etc)</option>
-              <option value="scale">All chords in key</option>
-            </select>
+            Scale
+            <select id="scaleSelect"></select>
           </label>
-          <label>
-            Harmony / Scale
-            <select id="harmonyScaleSelect"></select>
+          <label class="switch-label" for="chordSizeSwitch">
+            4-note chords
+            <input id="chordSizeSwitch" type="checkbox" />
           </label>
         </div>
       </section>
 
-      <section class="panel diagrams-panel">
-        <h2>Chord Diagrams</h2>
-        <p id="tuningSummary" class="tuning-summary"></p>
-        <div id="diagramGrid" class="diagram-grid"></div>
+      <section class="panel fretboard-panel">
+        <h2>Fretboard (0–15)</h2>
+        <div class="fretboard-top-row">
+          <div id="fretboardLegend" class="fretboard-legend"></div>
+          <div id="scaleChordButtons" class="scale-chord-buttons"></div>
+        </div>
+        <div id="fretboardWrap" class="fretboard-wrap"></div>
       </section>
 
-      <section class="panel fretboard-panel">
-        <h2>Scale Fretboard (0–15)</h2>
-        <div id="fretboardWrap" class="fretboard-wrap"></div>
-        <div id="fretboardLegend" class="fretboard-legend"></div>
+      <section class="panel diagrams-panel">
+        <div class="panel-title-row">
+          <h2>Chords</h2>
+          <div id="chordModeButtons" class="segmented"></div>
+        </div>
+        <div id="specificChordControls" class="specific-controls hidden"></div>
+        <p id="tuningSummary" class="tuning-summary"></p>
+        <div id="diagramGrid" class="diagram-grid"></div>
       </section>
     </main>
 

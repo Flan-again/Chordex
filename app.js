@@ -1,671 +1,316 @@
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const NOTE_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'];
 const STRING_NAMES = ['6 (Low E)', '5 (A)', '4 (D)', '3 (G)', '2 (B)', '1 (High E)'];
 const STANDARD_TUNING = [4, 9, 2, 7, 11, 4];
 const MAX_FRET = 15;
-const VOICINGS_PER_CHORD = 4;
 const MAX_TUNING_OFFSET = 8;
 const SAVED_TUNINGS_COOKIE = 'chordex_saved_tunings';
 
-const PRESETS = {
-  'E Standard': [0, 0, 0, 0, 0, 0],
-  'Drop D': [-2, 0, 0, 0, 0, 0],
-  'D Standard': [-2, -2, -2, -2, -2, -2],
-  'Open G': [-2, -2, 0, 0, 0, -2],
-  'Half Step Down': [-1, -1, -1, -1, -1, -1],
-  Custom: null,
+const SCALE_LIBRARY = {
+  major: { label: 'Major', intervals: [0, 2, 4, 5, 7, 9, 11], degrees: [0, 2, 4, 5, 7, 9, 11], third: 4 },
+  minor: { label: 'Minor', intervals: [0, 2, 3, 5, 7, 8, 10], degrees: [0, 2, 3, 5, 7, 8, 10], third: 3 },
+  harmonicMinor: { label: 'Harmonic Minor', intervals: [0, 2, 3, 5, 7, 8, 11], degrees: [0, 2, 3, 5, 7, 8, 11], third: 3 },
+  melodicMinor: { label: 'Melodic Minor', intervals: [0, 2, 3, 5, 7, 9, 11], degrees: [0, 2, 3, 5, 7, 9, 11], third: 3 },
+  majorPentatonic: { label: 'Major Pentatonic', intervals: [0, 2, 4, 7, 9], degrees: [0, 2, 4, 7, 9], third: 4 },
+  minorPentatonic: { label: 'Minor Pentatonic', intervals: [0, 3, 5, 7, 10], degrees: [0, 3, 5, 7, 10], third: 3 },
+  neutralPentatonic: { label: 'Neutral Pentatonic', intervals: [0, 2, 5, 7, 10], degrees: [0, 2, 5, 7, 10], third: 4 },
+  majorBlues: { label: 'Major Blues', intervals: [0, 2, 3, 4, 7, 9], degrees: [0, 2, 3, 4, 7, 9], third: 4 },
+  minorBlues: { label: 'Minor Blues', intervals: [0, 3, 5, 6, 7, 10], degrees: [0, 3, 5, 6, 7, 10], third: 3 },
+  mixolydian: { label: 'Mixolydian', intervals: [0, 2, 4, 5, 7, 9, 10], degrees: [0, 2, 4, 5, 7, 9, 10], third: 4 },
 };
+
+const PRESETS = { 'E Standard': [0, 0, 0, 0, 0, 0], 'Drop D': [-2, 0, 0, 0, 0, 0], 'D Standard': [-2, -2, -2, -2, -2, -2], Custom: null };
+
+const CHORD_FAMILY_OPTIONS = [
+  { label: 'sus2', intervals: [0, 2, 7], suffix: 'sus2' },
+  { label: 'minor', intervals: [0, 3, 7], suffix: 'm' },
+  { label: 'major', intervals: [0, 4, 7], suffix: '' },
+  { label: 'sus4', intervals: [0, 5, 7], suffix: 'sus4' },
+  { label: 'fifth', intervals: [0, 7], suffix: '5' },
+  { label: 'sixth', intervals: [0, 4, 7, 9], suffix: '6' },
+  { label: 'min7', intervals: [0, 3, 7, 10], suffix: 'm7' },
+  { label: '7', intervals: [0, 4, 7, 10], suffix: '7' },
+  { label: 'maj7', intervals: [0, 4, 7, 11], suffix: 'maj7' },
+];
+const ADD_OPTIONS = [{ label: 'none', add: null }, { label: 'add9', add: 14 }, { label: 'add11', add: 17 }, { label: 'add13', add: 21 }];
 
 const savedTunings = {};
-
-const CHORD_TYPES = [
-  { name: 'Major', suffix: '', intervals: [0, 4, 7] },
-  { name: 'Minor', suffix: 'm', intervals: [0, 3, 7] },
-  { name: 'Seventh', suffix: '7', intervals: [0, 4, 7, 10] },
-  { name: 'Minor Seventh', suffix: 'm7', intervals: [0, 3, 7, 10] },
-  { name: 'Major Seventh', suffix: 'maj7', intervals: [0, 4, 7, 11] },
-  { name: 'Diminished', suffix: 'dim', intervals: [0, 3, 6] },
-];
-
-const SCALE_CHORDS = {
-  major: {
-    label: 'Major',
-    degreeRoots: [0, 2, 4, 5, 7, 9, 11],
-    qualities: ['Major', 'Minor', 'Minor', 'Major', 'Major', 'Minor', 'Diminished'],
-    roman: ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'],
-  },
-  minor: {
-    label: 'Minor',
-    degreeRoots: [0, 2, 3, 5, 7, 8, 10],
-    qualities: ['Minor', 'Diminished', 'Major', 'Minor', 'Minor', 'Major', 'Major'],
-    roman: ['i', 'ii°', 'III', 'iv', 'v', 'VI', 'VII'],
-  },
-};
-
-const SCALE_LIBRARY = {
-  major: { label: 'Major (Ionian)', intervals: [0, 2, 4, 5, 7, 9, 11], third: 4 },
-  minor: { label: 'Natural Minor (Aeolian)', intervals: [0, 2, 3, 5, 7, 8, 10], third: 3 },
-  majorPentatonic: { label: 'Major Pentatonic', intervals: [0, 2, 4, 7, 9], third: 4 },
-  minorPentatonic: { label: 'Minor Pentatonic', intervals: [0, 3, 5, 7, 10], third: 3 },
-  blues: { label: 'Blues', intervals: [0, 3, 5, 6, 7, 10], third: 3 },
-  dorian: { label: 'Dorian', intervals: [0, 2, 3, 5, 7, 9, 10], third: 3 },
-};
-
 const state = {
   offsets: [0, 0, 0, 0, 0, 0],
+  activeStrings: [true, true, true, true, true, true],
   root: 0,
-  chordMode: 'types',
-  keyMode: 'major',
   scaleType: 'major',
+  useFourNoteChords: false,
+  chordMode: 'all',
+  selectedSpecificRoot: 0,
+  selectedSpecificQuality: 'major',
+  selectedAdd: 'none',
+  selectedLegend: new Set(),
+  selectedScaleChord: null,
+  inversionFilters: {},
+  paging: {},
 };
 
 const els = {
-  tuningControls: document.getElementById('tuningControls'),
-  rootSelect: document.getElementById('rootSelect'),
-  chordModeSelect: document.getElementById('chordModeSelect'),
-  harmonyScaleSelect: document.getElementById('harmonyScaleSelect'),
-  diagramGrid: document.getElementById('diagramGrid'),
-  tuningSummary: document.getElementById('tuningSummary'),
-  presetSelect: document.getElementById('presetSelect'),
-  fretboardWrap: document.getElementById('fretboardWrap'),
-  fretboardLegend: document.getElementById('fretboardLegend'),
-  tuningNameInput: document.getElementById('tuningNameInput'),
-  saveTuningBtn: document.getElementById('saveTuningBtn'),
+  tuningControls: document.getElementById('tuningControls'), rootSelect: document.getElementById('rootSelect'), scaleSelect: document.getElementById('scaleSelect'),
+  diagramGrid: document.getElementById('diagramGrid'), tuningSummary: document.getElementById('tuningSummary'), presetSelect: document.getElementById('presetSelect'),
+  fretboardWrap: document.getElementById('fretboardWrap'), fretboardLegend: document.getElementById('fretboardLegend'), tuningNameInput: document.getElementById('tuningNameInput'),
+  saveTuningBtn: document.getElementById('saveTuningBtn'), chordSizeSwitch: document.getElementById('chordSizeSwitch'), scaleChordButtons: document.getElementById('scaleChordButtons'),
+  chordModeButtons: document.getElementById('chordModeButtons'), specificChordControls: document.getElementById('specificChordControls'),
 };
 
-function noteName(pc) {
-  return NOTE_NAMES[((pc % 12) + 12) % 12];
-}
+const noteName = (pc) => NOTE_NAMES[(pc + 120) % 12];
+const getTuningPitches = () => STANDARD_TUNING.map((pc, i) => (pc + state.offsets[i] + 120) % 12);
 
-function setupRootOptions() {
-  NOTE_NAMES.forEach((note, index) => {
-    const option = document.createElement('option');
-    option.value = String(index);
-    option.textContent = note;
-    els.rootSelect.append(option);
+function setupSelects() {
+  NOTE_NAMES.forEach((note, i) => {
+    const o = document.createElement('option'); o.value = String(i); o.textContent = note; els.rootSelect.append(o);
   });
-
-  els.rootSelect.value = String(state.root);
-  els.rootSelect.addEventListener('change', () => {
-    state.root = Number(els.rootSelect.value);
-    render();
-  });
-}
-
-function setupMusicSelectors() {
-  els.chordModeSelect.value = state.chordMode;
-  els.harmonyScaleSelect.innerHTML = '';
-
-  const harmonyGroup = document.createElement('optgroup');
-  harmonyGroup.label = 'Key harmony (for key chords)';
-  Object.entries(SCALE_CHORDS).forEach(([key, value]) => {
-    const option = document.createElement('option');
-    option.value = `harmony:${key}`;
-    option.textContent = `${value.label} harmony`;
-    harmonyGroup.append(option);
-  });
-
-  const scaleGroup = document.createElement('optgroup');
-  scaleGroup.label = 'Fretboard scale';
   Object.entries(SCALE_LIBRARY).forEach(([key, value]) => {
-    const option = document.createElement('option');
-    option.value = `scale:${key}`;
-    option.textContent = value.label;
-    scaleGroup.append(option);
+    const o = document.createElement('option'); o.value = key; o.textContent = value.label; els.scaleSelect.append(o);
   });
-
-  els.harmonyScaleSelect.append(harmonyGroup, scaleGroup);
-  els.harmonyScaleSelect.value = `harmony:${state.keyMode}`;
-
-  els.chordModeSelect.addEventListener('change', () => {
-    state.chordMode = els.chordModeSelect.value;
-    render();
-  });
-
-  els.harmonyScaleSelect.addEventListener('change', () => {
-    const [type, value] = els.harmonyScaleSelect.value.split(':');
-    if (type === 'harmony' && SCALE_CHORDS[value]) {
-      state.keyMode = value;
-    }
-    if (type === 'scale' && SCALE_LIBRARY[value]) {
-      state.scaleType = value;
-    }
-    render();
-  });
+  els.rootSelect.value = String(state.root);
+  els.scaleSelect.value = state.scaleType;
+  els.rootSelect.addEventListener('change', () => { state.root = Number(els.rootSelect.value); state.selectedLegend = new Set(); state.selectedScaleChord = null; render(); });
+  els.scaleSelect.addEventListener('change', () => { state.scaleType = els.scaleSelect.value; state.selectedLegend = new Set(); state.selectedScaleChord = null; render(); });
+  els.chordSizeSwitch.addEventListener('change', () => { state.useFourNoteChords = els.chordSizeSwitch.checked; render(); });
 }
 
-function getSavedTuningOptions() {
-  return Object.entries(savedTunings).sort(([a], [b]) => a.localeCompare(b));
-}
+function loadSavedTuningsFromCookie() { const entry = document.cookie.split(';').map((s) => s.trim()).find((s) => s.startsWith(`${SAVED_TUNINGS_COOKIE}=`)); if (!entry) return; try { Object.assign(savedTunings, JSON.parse(decodeURIComponent(entry.split('=')[1]))); } catch (_e) {} }
+function writeSavedTuningsCookie() { document.cookie = `${SAVED_TUNINGS_COOKIE}=${encodeURIComponent(JSON.stringify(savedTunings))}; max-age=${60 * 60 * 24 * 365}; path=/; samesite=lax`; }
+function syncPresetOptions() { const prev = els.presetSelect.value; els.presetSelect.innerHTML = ''; Object.keys(PRESETS).forEach((name) => { const o = document.createElement('option'); o.value = name; o.textContent = name; els.presetSelect.append(o); }); Object.keys(savedTunings).forEach((name) => { const o = document.createElement('option'); o.value = name; o.textContent = name; els.presetSelect.append(o); }); els.presetSelect.value = prev || 'E Standard'; }
 
-function syncPresetOptions() {
-  const previousValue = els.presetSelect.value;
-  els.presetSelect.innerHTML = '';
-
-  Object.keys(PRESETS).forEach((presetName) => {
-    const option = document.createElement('option');
-    option.value = presetName;
-    option.textContent = presetName;
-    els.presetSelect.append(option);
-  });
-
-  const savedOptions = getSavedTuningOptions();
-  if (savedOptions.length) {
-    const group = document.createElement('optgroup');
-    group.label = 'Saved tunings';
-    savedOptions.forEach(([presetName]) => {
-      const option = document.createElement('option');
-      option.value = presetName;
-      option.textContent = presetName;
-      group.append(option);
-    });
-    els.presetSelect.append(group);
-  }
-
-  const values = Array.from(els.presetSelect.options).map((option) => option.value);
-  els.presetSelect.value = previousValue && values.includes(previousValue) ? previousValue : 'E Standard';
-}
-
-function setupPresetSelect() {
+function setupTuning() {
   syncPresetOptions();
-  els.presetSelect.addEventListener('change', () => {
-    const preset = PRESETS[els.presetSelect.value] || savedTunings[els.presetSelect.value];
-    if (!preset) {
-      return;
-    }
-    state.offsets = [...preset];
-    syncTuningControls();
-    render();
+  els.presetSelect.addEventListener('change', () => { const preset = PRESETS[els.presetSelect.value] || savedTunings[els.presetSelect.value]; if (!preset) return; state.offsets = [...preset]; render(); });
+  els.saveTuningBtn.addEventListener('click', () => { const name = els.tuningNameInput.value.trim(); if (!name) return; savedTunings[name] = [...state.offsets]; writeSavedTuningsCookie(); syncPresetOptions(); els.presetSelect.value = name; els.tuningNameInput.value = ''; });
+}
+
+function formatOffset(offset) { if (offset === 0) return '±0 tones'; const sign = offset > 0 ? '+' : '-'; return `${sign}${(Math.abs(offset) / 2).toFixed((Math.abs(offset) % 2 === 0) ? 0 : 1)} tones`; }
+
+function renderTuningControls() {
+  const tuning = getTuningPitches(); els.tuningControls.innerHTML = '';
+  STRING_NAMES.forEach((name, i) => {
+    const row = document.createElement('div'); row.className = `string-row ${state.activeStrings[i] ? '' : 'inactive'}`;
+    row.innerHTML = `<div class="string-label">${name}</div><div class="tuning-note">${noteName(tuning[i])}</div>`;
+    const arrows = document.createElement('div'); arrows.className = 'tuning-arrows';
+    [-1, 1].forEach((d) => { const b = document.createElement('button'); b.className = 'arrow-btn'; b.textContent = d < 0 ? '↓' : '↑'; b.disabled = state.offsets[i] <= -MAX_TUNING_OFFSET && d < 0 || state.offsets[i] >= MAX_TUNING_OFFSET && d > 0; b.onclick = () => { state.offsets[i] = Math.max(-MAX_TUNING_OFFSET, Math.min(MAX_TUNING_OFFSET, state.offsets[i] + d)); els.presetSelect.value = 'Custom'; render(); }; arrows.append(b); });
+    const toggle = document.createElement('button'); toggle.className = `toggle-btn ${state.activeStrings[i] ? 'active' : ''}`; toggle.innerHTML = `<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="2"/>${state.activeStrings[i] ? '<path d="M6 10l3 3 5-6" fill="none" stroke="currentColor" stroke-width="2"/>' : ''}</svg>`;
+    toggle.onclick = () => { state.activeStrings[i] = !state.activeStrings[i]; render(); };
+    const value = document.createElement('div'); value.className = 'offset-value'; value.textContent = formatOffset(state.offsets[i]);
+    row.append(arrows, toggle, value); els.tuningControls.append(row);
   });
 }
 
-function writeSavedTuningsCookie() {
-  const value = encodeURIComponent(JSON.stringify(savedTunings));
-  document.cookie = `${SAVED_TUNINGS_COOKIE}=${value}; max-age=${60 * 60 * 24 * 365}; path=/; samesite=lax`;
+function degreeLabel(n) { return ['Root', '2nd', '3rd', '4th', '5th', '6th', '7th'][n] || `${n + 1}th`; }
+
+function getScalePcData() {
+  const scale = SCALE_LIBRARY[state.scaleType];
+  return scale.intervals.map((interval, i) => ({ degree: i, interval, pc: (state.root + interval) % 12, label: degreeLabel(i + 0), color: i === 0 ? '#ff9f67' : '#98bcff' }));
 }
 
-function loadSavedTuningsFromCookie() {
-  const entry = document.cookie
-    .split(';')
-    .map((item) => item.trim())
-    .find((item) => item.startsWith(`${SAVED_TUNINGS_COOKIE}=`));
-
-  if (!entry) return;
-
-  try {
-    const raw = entry.slice(SAVED_TUNINGS_COOKIE.length + 1);
-    const parsed = JSON.parse(decodeURIComponent(raw));
-    if (!parsed || typeof parsed !== 'object') return;
-
-    Object.entries(parsed).forEach(([name, offsets]) => {
-      if (!Array.isArray(offsets) || offsets.length !== 6) return;
-      if (offsets.some((value) => typeof value !== 'number' || Number.isNaN(value))) return;
-      if (PRESETS[name]) return;
-      savedTunings[name] = offsets.map((value) => Math.max(-MAX_TUNING_OFFSET, Math.min(MAX_TUNING_OFFSET, Math.round(value))));
-    });
-  } catch (_error) {
-    // Ignore malformed cookie content.
-  }
-}
-
-function setupSaveTuning() {
-  els.saveTuningBtn.addEventListener('click', () => {
-    const name = els.tuningNameInput.value.trim();
-    if (!name) return;
-
-    savedTunings[name] = [...state.offsets];
-    writeSavedTuningsCookie();
-    syncPresetOptions();
-    els.presetSelect.value = name;
-    els.tuningNameInput.value = '';
-  });
-}
-
-function getTuningPitches() {
-  return STANDARD_TUNING.map((pc, i) => (pc + state.offsets[i] + 120) % 12);
-}
-
-function getTuningDescription() {
-  return getTuningPitches().map((pc) => noteName(pc)).join(' - ');
-}
-
-function updateOffset(index, delta) {
-  const next = Math.max(-MAX_TUNING_OFFSET, Math.min(MAX_TUNING_OFFSET, state.offsets[index] + delta));
-  if (next === state.offsets[index]) return;
-  state.offsets[index] = next;
-  els.presetSelect.value = 'Custom';
-  syncTuningControls();
-  render();
-}
-
-function setupTuningControls() {
-  els.tuningControls.innerHTML = '';
-
-  STRING_NAMES.forEach((name, index) => {
-    const row = document.createElement('div');
-    row.className = 'string-row';
-
-    const label = document.createElement('div');
-    label.className = 'string-label';
-    label.textContent = name;
-
-    const note = document.createElement('div');
-    note.className = 'tuning-note';
-
-    const arrows = document.createElement('div');
-    arrows.className = 'tuning-arrows';
-
-    const downBtn = document.createElement('button');
-    downBtn.type = 'button';
-    downBtn.className = 'arrow-btn';
-    downBtn.textContent = '↓';
-    downBtn.dataset.index = String(index);
-    downBtn.dataset.delta = '-1';
-
-    const upBtn = document.createElement('button');
-    upBtn.type = 'button';
-    upBtn.className = 'arrow-btn';
-    upBtn.textContent = '↑';
-    upBtn.dataset.index = String(index);
-    upBtn.dataset.delta = '1';
-
-    const value = document.createElement('div');
-    value.className = 'offset-value';
-
-    [downBtn, upBtn].forEach((button) => {
-      button.addEventListener('click', () => {
-        updateOffset(Number(button.dataset.index), Number(button.dataset.delta));
-      });
-    });
-
-    arrows.append(downBtn, upBtn);
-    row.append(label, note, arrows, value);
-    els.tuningControls.append(row);
-  });
-
-  syncTuningControls();
-}
-
-function syncTuningControls() {
-  const tuning = getTuningPitches();
-  const rows = Array.from(els.tuningControls.children);
-
-  rows.forEach((row, i) => {
-    const note = row.querySelector('.tuning-note');
-    const value = row.querySelector('.offset-value');
-    const downBtn = row.querySelector('[data-delta="-1"]');
-    const upBtn = row.querySelector('[data-delta="1"]');
-
-    note.textContent = noteName(tuning[i]);
-    value.textContent = formatOffset(state.offsets[i]);
-    downBtn.disabled = state.offsets[i] <= -MAX_TUNING_OFFSET;
-    upBtn.disabled = state.offsets[i] >= MAX_TUNING_OFFSET;
-  });
-}
-
-function formatOffset(offset) {
-  if (offset === 0) return '±0 tones';
-  const sign = offset > 0 ? '+' : '-';
-  const tones = Math.abs(offset) / 2;
-  return `${sign}${tones % 1 === 0 ? tones.toFixed(0) : tones.toFixed(1)} tones`;
-}
-
-function chordPitchClasses(rootPc, intervals) {
-  return intervals.map((interval) => (rootPc + interval) % 12);
-}
-
-function findChordVoicings(rootPc, intervals, tuningPitches, maxFret = MAX_FRET, maxResults = VOICINGS_PER_CHORD) {
-  const chordNotes = chordPitchClasses(rootPc, intervals);
-  const chordSet = new Set(chordNotes);
-  const bestByPosition = [];
-
-  for (let baseFret = 0; baseFret <= maxFret; baseFret += 1) {
-    const optionsPerString = tuningPitches.map((openPc) => {
-      const options = [-1];
-      if (chordSet.has(openPc)) options.push(0);
-
-      const start = Math.max(1, baseFret);
-      const end = Math.min(baseFret + 4, maxFret);
-      for (let fret = start; fret <= end; fret += 1) {
-        if (chordSet.has((openPc + fret) % 12)) options.push(fret);
-      }
-
-      return [...new Set(options)];
-    });
-
-    const shape = new Array(6).fill(-1);
-    let bestShape = null;
-
-    function evaluateShape(candidate) {
-      const sounding = [];
-      const soundedPitchClasses = [];
-
-      candidate.forEach((fret, stringIndex) => {
-        if (fret < 0) return;
-        sounding.push({ stringIndex, fret });
-        soundedPitchClasses.push((tuningPitches[stringIndex] + fret) % 12);
-      });
-
-      if (sounding.length < 3 || !soundedPitchClasses.includes(rootPc)) return;
-      if (!soundedPitchClasses.every((pc) => chordSet.has(pc))) return;
-
-      const fretted = sounding.map((n) => n.fret).filter((f) => f > 0);
-      if (baseFret > 0 && fretted.length === 0) return;
-
-      const minFret = fretted.length ? Math.min(...fretted) : 0;
-      const maxUsedFret = fretted.length ? Math.max(...fretted) : 0;
-      const span = maxUsedFret - minFret;
-      if (span > 3) return;
-
-      const uniqueNotes = new Set(soundedPitchClasses);
-      if (uniqueNotes.size < Math.min(3, intervals.length)) return;
-
-      const muteCount = candidate.filter((f) => f < 0).length;
-      if (muteCount > 3) return;
-      const hardToMuteCount = candidate.filter((f, stringIndex) => f < 0 && stringIndex >= 1 && stringIndex <= 3).length;
-
-      const frettedCount = fretted.length;
-      if (frettedCount > 4) return;
-      const soundingCount = sounding.length;
-      const openCount = candidate.filter((f) => f === 0).length;
-      const avgFret = frettedCount ? fretted.reduce((sum, fret) => sum + fret, 0) / frettedCount : 0;
-      const missingChordTones = Math.max(0, chordSet.size - uniqueNotes.size);
-
-      const score =
-        muteCount * 5 +
-        hardToMuteCount * 6 +
-        missingChordTones * 9 +
-        (6 - soundingCount) * 4 +
-        Math.max(0, frettedCount - 3) * 2 +
-        span * 1.1 +
-        Math.abs(avgFret - Math.max(2, baseFret)) * 0.2 -
-        openCount * 0.8;
-
-      if (!bestShape || score < bestShape.score) {
-        bestShape = { frets: [...candidate], score, minFret, maxUsedFret, baseFret };
-      }
-    }
-
-    function dfs(stringIndex) {
-      if (stringIndex === 6) {
-        evaluateShape(shape);
-        return;
-      }
-
-      for (const fret of optionsPerString[stringIndex]) {
-        shape[stringIndex] = fret;
-        dfs(stringIndex + 1);
-      }
-    }
-
-    dfs(0);
-    if (bestShape) {
-      bestByPosition.push(bestShape);
-    }
-  }
-
-  const deduped = [];
-  const seen = new Set();
-
-  bestByPosition
-    .sort((a, b) => a.minFret - b.minFret || a.baseFret - b.baseFret || a.score - b.score)
-    .forEach((candidate) => {
-      const key = candidate.frets.join(',');
-      if (seen.has(key)) return;
-      seen.add(key);
-      deduped.push(candidate);
-    });
-
-  return deduped.slice(0, maxResults);
-}
-
-function buildDiagramSvg(shape, rootPc, tuningPitches) {
-  const width = 220;
-  const height = 250;
-  const paddingX = 26;
-  const topY = 54;
-  const stringSpacing = 33;
-  const fretSpacing = 30;
-
-  const fretted = shape.filter((f) => f > 0);
-  const minFretted = fretted.length ? Math.min(...fretted) : 1;
-  const maxFretted = fretted.length ? Math.max(...fretted) : 1;
-  const startFret = Math.max(1, Math.min(minFretted, maxFretted - 4));
-
-  let svg = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Chord diagram">`;
-
-  for (let s = 0; s < 6; s += 1) {
-    const x = paddingX + s * stringSpacing;
-    svg += `<line x1="${x}" y1="${topY}" x2="${x}" y2="${topY + fretSpacing * 5}" stroke="#8392d9" stroke-width="2" />`;
-  }
-
-  for (let f = 0; f <= 5; f += 1) {
-    const y = topY + f * fretSpacing;
-    const thickness = startFret === 1 && f === 0 ? 6 : 2;
-    svg += `<line x1="${paddingX}" y1="${y}" x2="${paddingX + stringSpacing * 5}" y2="${y}" stroke="#9ba8eb" stroke-width="${thickness}" stroke-linecap="round" />`;
-  }
-
-  if (startFret > 1) {
-    svg += `<text x="6" y="${topY + fretSpacing + 4}" fill="#c5ccf2" font-size="14" font-weight="700">${startFret}fr</text>`;
-  }
-
-  shape.forEach((fret, stringIndex) => {
-    const x = paddingX + stringIndex * stringSpacing;
-
-    if (fret === -1) {
-      svg += `<text x="${x}" y="30" text-anchor="middle" fill="#ff9eaa" font-size="16" font-weight="700">X</text>`;
-      return;
-    }
-
-    if (fret === 0) {
-      svg += `<text x="${x}" y="30" text-anchor="middle" fill="#8de8cd" font-size="16" font-weight="700">O</text>`;
-    }
-
-    const fretOnDiagram = fret - startFret + 1;
-    if (fretOnDiagram < 1 || fretOnDiagram > 5) return;
-
-    const y = topY + (fretOnDiagram - 0.5) * fretSpacing;
-    const pitchClass = (tuningPitches[stringIndex] + fret) % 12;
-    const isRoot = pitchClass === rootPc;
-    const fill = isRoot ? '#70b7ff' : '#67f0c7';
-
-    svg += `<circle cx="${x}" cy="${y}" r="10" fill="${fill}" />`;
-  });
-
-  for (let s = 0; s < 6; s += 1) {
-    const x = paddingX + s * stringSpacing;
-    svg += `<text x="${x}" y="240" text-anchor="middle" fill="#c5ccf2" font-size="12">${noteName(tuningPitches[s])}</text>`;
-  }
-
-  svg += '</svg>';
-  return svg;
-}
-
-function getChordsToRender() {
-  if (state.chordMode === 'types') {
-    return CHORD_TYPES.map((type) => ({
-      title: `${noteName(state.root)}${type.suffix} (${type.name})`,
-      rootPc: state.root,
-      intervals: type.intervals,
-    }));
-  }
-
-  const keyData = SCALE_CHORDS[state.keyMode];
-  return keyData.degreeRoots.map((interval, index) => {
-    const qualityName = keyData.qualities[index];
-    const quality = CHORD_TYPES.find((type) => type.name === qualityName);
-    const chordRoot = (state.root + interval) % 12;
-    return {
-      title: `${keyData.roman[index]} · ${noteName(chordRoot)}${quality.suffix} (${quality.name})`,
-      rootPc: chordRoot,
-      intervals: quality.intervals,
-    };
-  });
-}
-
-function renderDiagrams() {
-  const tuning = getTuningPitches();
-  const chordsToRender = getChordsToRender();
-
-  els.diagramGrid.innerHTML = '';
-
-  chordsToRender.forEach((chord) => {
-    const card = document.createElement('article');
-    card.className = 'diagram-card';
-
-    const title = document.createElement('h3');
-    title.textContent = chord.title;
-    card.append(title);
-
-    const voicings = findChordVoicings(chord.rootPc, chord.intervals, tuning);
-
-    if (!voicings.length) {
-      const warning = document.createElement('p');
-      warning.className = 'no-shape';
-      warning.textContent = 'No playable voicing found up to fret 15.';
-      card.append(warning);
-    } else {
-      const voicingGrid = document.createElement('div');
-      voicingGrid.className = 'voicing-grid';
-
-      voicings.forEach((voicing, voicingIndex) => {
-        const item = document.createElement('div');
-        item.className = 'voicing-item';
-
-        const label = document.createElement('p');
-        label.className = 'voicing-label';
-        label.textContent = `Voicing ${voicingIndex + 1} · Position ${voicing.minFret || 0}`;
-
-        const svgWrap = document.createElement('div');
-        svgWrap.innerHTML = buildDiagramSvg(voicing.frets, chord.rootPc, tuning);
-
-        const shape = voicing.frets.map((f) => (f < 0 ? 'x' : f)).join(' - ');
-        const detail = document.createElement('p');
-        detail.textContent = `Shape: ${shape}`;
-
-        item.append(label, svgWrap, detail);
-        voicingGrid.append(item);
-      });
-
-      card.append(voicingGrid);
-    }
-
-    const notes = chordPitchClasses(chord.rootPc, chord.intervals).map((pc) => noteName(pc)).join(', ');
-    const foot = document.createElement('p');
-    foot.textContent = `Chord tones: ${notes}`;
-    card.append(foot);
-
-    els.diagramGrid.append(card);
-  });
-}
-
-function buildScaleFretboardSvg(rootPc, tuningPitches, scale) {
-  const frets = MAX_FRET;
-  const width = 1100;
-  const height = 280;
-  const leftPad = 50;
-  const topPad = 34;
-  const fretSpacing = 64;
-  const stringSpacing = 38;
-
-  const highToLow = [...tuningPitches].reverse();
-
-  const scaleSet = new Set(scale.intervals.map((i) => (rootPc + i) % 12));
-  const rootTone = rootPc;
-  const thirdTone = (rootPc + scale.third) % 12;
-  const fourthTone = (rootPc + 5) % 12;
-  const fifthTone = (rootPc + 7) % 12;
-
-  let svg = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Scale fretboard">`;
-
-  for (let s = 0; s < 6; s += 1) {
-    const y = topPad + s * stringSpacing;
-    const gauge = 1 + s * 0.45;
-    svg += `<line x1="${leftPad}" y1="${y}" x2="${leftPad + fretSpacing * frets}" y2="${y}" stroke="#9aa7e7" stroke-width="${gauge.toFixed(2)}" />`;
-  }
-
-  for (let f = 0; f <= frets; f += 1) {
-    const x = leftPad + f * fretSpacing;
-    const thickness = f === 0 ? 5 : 2;
-    svg += `<line x1="${x}" y1="${topPad - 16}" x2="${x}" y2="${topPad + stringSpacing * 5 + 16}" stroke="#8392d9" stroke-width="${thickness}" />`;
-    if (f % 3 === 0 || f === 1 || f === 5 || f === 7 || f === 9 || f === 12 || f === 15) {
-      svg += `<text x="${x + (f === frets ? -10 : 6)}" y="18" fill="#c5ccf2" font-size="11">${f}</text>`;
-    }
-  }
-
-  highToLow.forEach((openPc, stringIndex) => {
-    const y = topPad + stringIndex * stringSpacing;
-
-    for (let fret = 0; fret <= frets; fret += 1) {
-      const pitch = (openPc + fret) % 12;
-      if (!scaleSet.has(pitch)) continue;
-
-      const x = leftPad + fret * fretSpacing;
-      let fill = '#7da8d8';
-
-      if (pitch === rootTone) {
-        fill = '#ff9f67';
-      } else if (pitch === thirdTone) {
-        fill = '#a6e56a';
-      } else if (pitch === fourthTone) {
-        fill = '#76e0e0';
-      } else if (pitch === fifthTone) {
-        fill = '#dca7ff';
-      }
-
-      svg += `<circle cx="${x}" cy="${y}" r="10.5" fill="${fill}" stroke="#0e1230" stroke-width="1.2" />`;
-    }
-
-    svg += `<text x="20" y="${y + 4}" fill="#d2d9ff" font-size="12">${noteName(openPc)}</text>`;
-  });
-
-  svg += '</svg>';
-  return svg;
-}
-
-function renderFretboardLegend() {
-  const legendItems = [
-    { label: 'Root', color: '#ff9f67' },
-    { label: '3rd', color: '#a6e56a' },
-    { label: '4th', color: '#76e0e0' },
-    { label: '5th', color: '#dca7ff' },
-    { label: 'Other scale tones', color: '#7da8d8' },
-  ];
-
+function renderLegend() {
+  const pcs = getScalePcData();
+  if (!state.selectedLegend.size) pcs.forEach((item) => state.selectedLegend.add(item.pc));
   els.fretboardLegend.innerHTML = '';
-  legendItems.forEach((item) => {
-    const chip = document.createElement('span');
-    chip.className = 'legend-item';
-
-    const swatch = document.createElement('span');
-    swatch.className = 'legend-swatch';
-    swatch.style.background = item.color;
-
-    const label = document.createElement('span');
-    label.textContent = item.label;
-
-    chip.append(swatch, label);
+  pcs.forEach((item, idx) => {
+    const chip = document.createElement('button'); chip.className = `legend-item ${state.selectedLegend.has(item.pc) ? '' : 'off'}`;
+    chip.innerHTML = `<span>${idx === 0 ? 'Root' : degreeLabel(idx + 1)}</span><span class="legend-dot" style="background:${idx === 0 ? '#ff9f67' : 'transparent'};border:2px solid ${item.color};color:${idx===0?'#1a2140':item.color}">${noteName(item.pc)}</span>`;
+    chip.onclick = () => { if (state.selectedLegend.has(item.pc)) state.selectedLegend.delete(item.pc); else state.selectedLegend.add(item.pc); state.selectedScaleChord = null; renderFretboard(); renderLegend(); };
     els.fretboardLegend.append(chip);
   });
 }
 
-function renderFretboard() {
-  const tuning = getTuningPitches();
+function scaleChords() {
   const scale = SCALE_LIBRARY[state.scaleType];
-  els.fretboardWrap.innerHTML = buildScaleFretboardSvg(state.root, tuning, scale);
+  return scale.degrees.map((iv, idx) => {
+    const rootPc = (state.root + iv) % 12;
+    const triad = [0, 2, 4, 6].slice(0, state.useFourNoteChords ? 4 : 3).map((jump) => scale.intervals[(idx + jump) % scale.intervals.length]);
+    const rel = triad.map((v) => (v - iv + 12) % 12).sort((a, b) => a - b);
+    const name = `${noteName(rootPc)}${rel.includes(3) ? 'm' : ''}${state.useFourNoteChords ? '7' : ''}`;
+    return { roman: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][idx] || `${idx + 1}`, name, rootPc, intervals: rel };
+  });
+}
+
+function renderScaleChordButtons() {
+  els.scaleChordButtons.innerHTML = '';
+  scaleChords().forEach((chord, idx) => {
+    const b = document.createElement('button'); b.textContent = `${chord.roman} ${chord.name}`; b.className = state.selectedScaleChord === idx ? 'active' : '';
+    b.onclick = () => {
+      if (state.selectedScaleChord === idx) { state.selectedScaleChord = null; state.selectedLegend = new Set(getScalePcData().map((i) => i.pc)); }
+      else { state.selectedScaleChord = idx; state.selectedLegend = new Set(chord.intervals.map((i) => (chord.rootPc + i) % 12)); }
+      renderLegend(); renderFretboard();
+    };
+    els.scaleChordButtons.append(b);
+  });
+}
+
+function renderFretboard() {
+  const tuning = [...getTuningPitches()].reverse();
+  const active = [...state.activeStrings].reverse();
+  const width = 1160; const height = 280; const left = 44; const top = 34; const fretSpacing = 68; const stringSpacing = 38;
+  let svg = `<svg viewBox="0 0 ${width} ${height}">`;
+  for (let s = 0; s < 6; s++) { const y = top + s * stringSpacing; svg += `<line x1="${left}" y1="${y}" x2="${left + fretSpacing * MAX_FRET}" y2="${y}" stroke="#9aa7e7" stroke-width="${(1 + s * .4).toFixed(2)}" opacity="${active[s] ? 1 : .28}"/>`; }
+  for (let f = 0; f <= MAX_FRET; f++) { const x = left + f * fretSpacing; svg += `<line x1="${x}" y1="${top - 16}" x2="${x}" y2="${top + stringSpacing * 5 + 16}" stroke="#8392d9" stroke-width="${f === 0 ? 5 : 2}"/><text x="${x + 2}" y="18" fill="#c5ccf2" font-size="11">${f}</text>`; }
+  tuning.forEach((openPc, s) => {
+    const y = top + s * stringSpacing;
+    for (let f = 0; f <= MAX_FRET; f++) {
+      if (!active[s]) continue;
+      const pc = (openPc + f) % 12;
+      if (!state.selectedLegend.has(pc)) continue;
+      const x = left + (f + 0.5) * fretSpacing;
+      const isRoot = pc === state.root;
+      svg += isRoot ? `<circle cx="${x}" cy="${y}" r="10" fill="#ff9f67"/>` : `<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="#98bcff" stroke-width="2.5"/>`;
+    }
+    svg += `<text x="16" y="${y + 4}" fill="#d2d9ff" opacity="${active[s] ? 1 : .38}" font-size="12">${noteName(openPc)}</text>`;
+  });
+  els.fretboardWrap.innerHTML = `${svg}</svg>`;
+}
+
+function inversionName(order) { return order === 0 ? 'Natural' : order === 1 ? 'First Inversion' : 'Second Inversion'; }
+function inversionMatches(notes, rootPc, intervals, inversion) {
+  const tones = intervals.slice(0, 3).map((i) => (rootPc + i) % 12);
+  const low = notes[0];
+  if (inversion === 0) return low === tones[0];
+  if (inversion === 1) return low === tones[1];
+  return low === tones[2];
+}
+
+function findVoicings(rootPc, intervals) {
+  const tuning = getTuningPitches(); const chordSet = new Set(intervals.map((i) => (rootPc + i) % 12)); const results = [];
+  const shape = new Array(6).fill(-1);
+  const options = tuning.map((open, i) => {
+    if (!state.activeStrings[i]) return [-1];
+    const arr = [-1];
+    for (let f = 0; f <= MAX_FRET; f++) if (chordSet.has((open + f) % 12)) arr.push(f);
+    return arr;
+  });
+  function dfs(i) {
+    if (i === 6) {
+      const sounding = shape.map((f, s) => ({ f, s })).filter((x) => x.f >= 0);
+      if (sounding.length < 3) return;
+      const pcs = sounding.map(({ f, s }) => (tuning[s] + f) % 12);
+      const uniq = new Set(pcs);
+      if (![...uniq].every((pc) => chordSet.has(pc))) return;
+      if (intervals.length >= 3 && uniq.size < 3) return;
+      const fretted = sounding.map((x) => x.f).filter((f) => f > 0);
+      if (fretted.length && Math.max(...fretted) - Math.min(...fretted) > 4) return;
+      const lowest = pcs[0];
+      results.push({ frets: [...shape], lowest, minFret: fretted.length ? Math.min(...fretted) : 0 });
+      return;
+    }
+    for (const f of options[i]) { shape[i] = f; dfs(i + 1); }
+  }
+  dfs(0);
+  const seen = new Set();
+  return results.sort((a, b) => a.lowest - b.lowest || a.minFret - b.minFret).filter((v) => { const key = v.frets.join(','); if (seen.has(key)) return false; seen.add(key); return true; }).slice(0, 60);
+}
+
+function buildDiagramSvg(shape, rootPc, intervals) {
+  const tuning = getTuningPitches(); const width = 220; const height = 250; const px = 26; const top = 54; const ss = 33; const fs = 30;
+  const fretted = shape.filter((f) => f > 0); const start = fretted.length ? Math.max(1, Math.min(...fretted)) : 1;
+  let svg = `<svg viewBox="0 0 ${width} ${height}">`;
+  for (let s = 0; s < 6; s++) { const x = px + s * ss; svg += `<line x1="${x}" y1="${top}" x2="${x}" y2="${top + fs * 5}" stroke="#8392d9" stroke-width="2" opacity="${state.activeStrings[s] ? 1 : .28}"/>`; }
+  for (let f = 0; f <= 5; f++) { const y = top + f * fs; svg += `<line x1="${px}" y1="${y}" x2="${px + ss * 5}" y2="${y}" stroke="#9ba8eb" stroke-width="${start === 1 && f===0?6:2}"/>`; }
+  if (start > 1) svg += `<text x="8" y="${top + fs + 4}" fill="#c5ccf2" font-size="14" font-weight="700">${start}</text>`;
+  shape.forEach((fret, s) => {
+    const x = px + s * ss; if (fret === -1) { svg += `<text x="${x}" y="30" text-anchor="middle" fill="#ff9eaa" opacity="${state.activeStrings[s]?1:.28}" font-size="16" font-weight="700">X</text>`; return; }
+    if (fret === 0) svg += `<text x="${x}" y="30" text-anchor="middle" fill="#8de8cd" opacity="${state.activeStrings[s]?1:.28}" font-size="16" font-weight="700">O</text>`;
+    const fd = fret - start + 1; if (fd < 1 || fd > 5) return; const y = top + (fd - .5) * fs; const pc = (tuning[s] + fret) % 12; const rel = (pc - rootPc + 12) % 12;
+    const label = rel === 0 ? 'R' : rel === intervals[1] ? '3' : rel === 7 ? '5' : '';
+    svg += `<circle cx="${x}" cy="${y}" r="10" fill="#70b7ff" opacity="${state.activeStrings[s]?1:.35}"/><text x="${x}" y="${y+4}" text-anchor="middle" fill="#1a2140" opacity=".5" font-size="10">${label}</text>`;
+  });
+  for (let s = 0; s < 6; s++) { const x = px + s * ss; svg += `<text x="${x}" y="240" text-anchor="middle" fill="#c5ccf2" opacity="${state.activeStrings[s] ? 1 : .35}" font-size="12">${noteName(tuning[s])}</text>`; }
+  return `${svg}</svg>`;
+}
+
+function buildChordList() {
+  if (state.chordMode === 'specific') {
+    const base = CHORD_FAMILY_OPTIONS.find((o) => o.label === state.selectedSpecificQuality) || CHORD_FAMILY_OPTIONS[2];
+    const add = ADD_OPTIONS.find((a) => a.label === state.selectedAdd);
+    const intervals = [...base.intervals];
+    if (add && add.add != null) intervals.push(add.add % 12);
+    return [{ id: 'specific', title: `${noteName(state.selectedSpecificRoot)}${base.suffix}${add && add.add ? `(${add.label})` : ''}`, rootPc: state.selectedSpecificRoot, intervals }];
+  }
+  const chords = scaleChords();
+  if (state.chordMode === 'families') {
+    return CHORD_FAMILY_OPTIONS.map((f) => ({ id: f.label, title: `${noteName(state.root)}${f.suffix || ''} (${f.label})`, rootPc: state.root, intervals: f.intervals }));
+  }
+  return chords.map((c, i) => ({ id: `scale-${i}`, title: `${c.roman} · ${c.name}`, rootPc: c.rootPc, intervals: c.intervals }));
+}
+
+function renderSpecificControls() {
+  els.specificChordControls.innerHTML = '';
+  if (state.chordMode !== 'specific') { els.specificChordControls.classList.add('hidden'); return; }
+  els.specificChordControls.classList.remove('hidden');
+  const rootSelect = document.createElement('select');
+  NOTE_NAMES.forEach((n, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = n; rootSelect.append(o); });
+  rootSelect.value = String(state.selectedSpecificRoot); rootSelect.onchange = () => { state.selectedSpecificRoot = Number(rootSelect.value); renderDiagrams(); };
+  const row1 = document.createElement('div'); row1.className = 'chip-row'; row1.append(rootSelect);
+  const qualityRow = document.createElement('div'); qualityRow.className = 'chip-row';
+  CHORD_FAMILY_OPTIONS.forEach((o) => { const b = document.createElement('button'); b.className = `chip ${state.selectedSpecificQuality === o.label ? 'active' : ''}`; b.textContent = o.label; b.onclick = () => { state.selectedSpecificQuality = o.label; render(); }; qualityRow.append(b); });
+  const addRow = document.createElement('div'); addRow.className = 'chip-row';
+  ADD_OPTIONS.forEach((o) => { const b = document.createElement('button'); b.className = `chip ${state.selectedAdd === o.label ? 'active' : ''}`; b.textContent = o.label; b.onclick = () => { state.selectedAdd = o.label; render(); }; addRow.append(b); });
+  els.specificChordControls.append(row1, qualityRow, addRow);
+}
+
+function renderDiagrams() {
+  const chords = buildChordList();
+  els.diagramGrid.innerHTML = '';
+  chords.forEach((chord) => {
+    const card = document.createElement('article'); card.className = 'diagram-card';
+    if (!state.inversionFilters[chord.id]) state.inversionFilters[chord.id] = new Set([0]);
+    if (state.paging[chord.id] == null) state.paging[chord.id] = 0;
+    const head = document.createElement('div'); head.className = 'chord-head';
+    const h = document.createElement('h3'); h.textContent = chord.title; h.style.margin = '0';
+    const inv = document.createElement('div'); inv.className = 'inversion-toggles';
+    [0, 1, 2].forEach((i) => { const b = document.createElement('button'); b.className = `chip ${state.inversionFilters[chord.id].has(i) ? 'active' : ''}`; b.textContent = inversionName(i); b.onclick = () => { const set = state.inversionFilters[chord.id]; if (set.has(i)) set.delete(i); else set.add(i); if (!set.size) set.add(0); state.paging[chord.id] = 0; renderDiagrams(); }; inv.append(b); });
+    head.append(h, inv); card.append(head);
+
+    let voicings = findVoicings(chord.rootPc, chord.intervals);
+    voicings = voicings.filter((v) => state.inversionFilters[chord.id].has(0) || state.inversionFilters[chord.id].has(1) || state.inversionFilters[chord.id].has(2)).filter((v) => {
+      const notes = v.frets.map((f, s) => (f >= 0 ? (getTuningPitches()[s] + f) % 12 : null)).filter((x) => x != null);
+      return [...state.inversionFilters[chord.id]].some((i) => inversionMatches(notes, chord.rootPc, chord.intervals, i));
+    });
+
+    if (!voicings.length) { const p = document.createElement('p'); p.textContent = 'No playable voicing found up to fret 15.'; card.append(p); }
+    else {
+      const perPage = window.innerWidth <= 900 ? 3 : 5; const page = Math.min(state.paging[chord.id], Math.max(0, Math.ceil(voicings.length / perPage) - 1)); state.paging[chord.id] = page;
+      const headRow = document.createElement('div'); headRow.className = 'voicing-row-head'; headRow.innerHTML = `<small>${voicings.length} voicings</small>`;
+      const nav = document.createElement('div'); nav.className = 'voicing-nav'; const prev = document.createElement('button'); prev.textContent = '←'; prev.disabled = page === 0; prev.onclick = () => { state.paging[chord.id] = Math.max(0, page - 1); renderDiagrams(); }; const next = document.createElement('button'); next.textContent = '→'; next.disabled = (page + 1) * perPage >= voicings.length; next.onclick = () => { state.paging[chord.id] = page + 1; renderDiagrams(); }; nav.append(prev, next); headRow.append(nav); card.append(headRow);
+      const grid = document.createElement('div'); grid.className = 'voicing-grid';
+      voicings.slice(page * perPage, page * perPage + perPage).forEach((v, i) => { const item = document.createElement('div'); item.className = 'voicing-item'; const l = document.createElement('p'); l.className = 'voicing-label'; l.textContent = `Voicing ${page * perPage + i + 1}`; const sw = document.createElement('div'); sw.innerHTML = buildDiagramSvg(v.frets, chord.rootPc, chord.intervals); const sh = document.createElement('p'); sh.className = 'shape-line'; sh.textContent = `${v.frets.map((f) => (f < 0 ? 'x' : f)).join(' - ')}`; item.append(l, sw, sh); grid.append(item); });
+      card.append(grid);
+    }
+    els.diagramGrid.append(card);
+  });
+}
+
+function setupChordModeButtons() {
+  ['all', 'families', 'specific'].forEach((mode) => {
+    const b = document.createElement('button'); b.textContent = mode === 'all' ? 'All Chords in Key' : mode === 'families' ? 'Chord Families' : 'Specific Chord';
+    b.onclick = () => { state.chordMode = mode; render(); };
+    els.chordModeButtons.append(b);
+  });
+}
+
+function renderModeButtons() {
+  [...els.chordModeButtons.children].forEach((b, i) => b.classList.toggle('active', ['all', 'families', 'specific'][i] === state.chordMode));
 }
 
 function render() {
-  const modeLabel = state.chordMode === 'types' ? 'Chord families' : `${SCALE_CHORDS[state.keyMode].label} key chords`;
-  els.tuningSummary.textContent = `Current tuning (6→1): ${getTuningDescription()} · ${noteName(state.root)} · ${modeLabel}`;
-  renderDiagrams();
+  renderTuningControls();
+  renderModeButtons();
+  renderSpecificControls();
+  renderLegend();
+  renderScaleChordButtons();
   renderFretboard();
-  renderFretboardLegend();
+  renderDiagrams();
+  const modeLabel = state.chordMode === 'all' ? 'All chords in key' : state.chordMode === 'families' ? 'Chord families' : 'Specific chord';
+  els.tuningSummary.textContent = `Current tuning (6→1): ${getTuningPitches().map(noteName).join(' - ')} · ${noteName(state.root)} ${SCALE_LIBRARY[state.scaleType].label} · ${modeLabel}`;
 }
 
-setupRootOptions();
-setupMusicSelectors();
+setupChordModeButtons();
 loadSavedTuningsFromCookie();
-setupPresetSelect();
-setupTuningControls();
-setupSaveTuning();
+setupTuning();
+setupSelects();
 render();

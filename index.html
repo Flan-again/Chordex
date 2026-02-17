@@ -40,15 +40,17 @@
             Scale
             <select id="scaleSelect"></select>
           </label>
-          <label class="switch-label" for="chordSizeSwitch">
+          <label for="chordSizeSwitch" class="toggle-field">
             4-note chords
-            <input id="chordSizeSwitch" type="checkbox" />
+            <span class="switch-label">
+              <input id="chordSizeSwitch" type="checkbox" />
+            </span>
           </label>
         </div>
       </section>
 
       <section class="panel fretboard-panel">
-        <h2>Fretboard (0–15)</h2>
+        <h2>Fretboard</h2>
         <div class="fretboard-top-row">
           <div id="fretboardLegend" class="fretboard-legend"></div>
           <div id="scaleChordButtons" class="scale-chord-buttons"></div>
@@ -62,7 +64,6 @@
           <div id="chordModeButtons" class="segmented"></div>
         </div>
         <div id="specificChordControls" class="specific-controls hidden"></div>
-        <p id="tuningSummary" class="tuning-summary"></p>
         <div id="diagramGrid" class="diagram-grid"></div>
       </section>
     </main>

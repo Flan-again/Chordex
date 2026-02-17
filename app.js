@@ -43,7 +43,6 @@ const state = {
   activeStrings: [true, true, true, true, true, true],
   root: 0,
   scaleType: 'major',
-  useFourNoteChords: false,
   chordMode: 'all',
   selectedSpecificRoot: 0,
   selectedSpecificQuality: 'major',
@@ -56,10 +55,9 @@ const state = {
 
 const els = {
   tuningControls: document.getElementById('tuningControls'), rootSelect: document.getElementById('rootSelect'), scaleSelect: document.getElementById('scaleSelect'),
-  diagramGrid: document.getElementById('diagramGrid'), presetSelect: document.getElementById('presetSelect'),
+  presetSelect: document.getElementById('presetSelect'),
   fretboardWrap: document.getElementById('fretboardWrap'), fretboardLegend: document.getElementById('fretboardLegend'), tuningNameInput: document.getElementById('tuningNameInput'),
-  saveTuningBtn: document.getElementById('saveTuningBtn'), chordSizeSwitch: document.getElementById('chordSizeSwitch'), scaleChordButtons: document.getElementById('scaleChordButtons'),
-  chordModeButtons: document.getElementById('chordModeButtons'), specificChordControls: document.getElementById('specificChordControls'),
+  saveTuningBtn: document.getElementById('saveTuningBtn'), scaleChordButtons: document.getElementById('scaleChordButtons'),
 };
 
 const noteName = (pc) => NOTE_NAMES[(pc + 120) % 12];
@@ -76,7 +74,6 @@ function setupSelects() {
   els.scaleSelect.value = state.scaleType;
   els.rootSelect.addEventListener('change', () => { state.root = Number(els.rootSelect.value); state.selectedLegend = new Set(); state.selectedScaleChord = null; render(); });
   els.scaleSelect.addEventListener('change', () => { state.scaleType = els.scaleSelect.value; state.selectedLegend = new Set(); state.selectedScaleChord = null; render(); });
-  els.chordSizeSwitch.addEventListener('change', () => { state.useFourNoteChords = els.chordSizeSwitch.checked; render(); });
 }
 
 function loadSavedTuningsFromCookie() { const entry = document.cookie.split(';').map((s) => s.trim()).find((s) => s.startsWith(`${SAVED_TUNINGS_COOKIE}=`)); if (!entry) return; try { Object.assign(savedTunings, JSON.parse(decodeURIComponent(entry.split('=')[1]))); } catch (_e) {} }
@@ -153,9 +150,9 @@ function scaleChords() {
   const scale = SCALE_LIBRARY[state.scaleType];
   return scale.degrees.map((iv, idx) => {
     const rootPc = (state.root + iv) % 12;
-    const triad = [0, 2, 4, 6].slice(0, state.useFourNoteChords ? 4 : 3).map((jump) => scale.intervals[(idx + jump) % scale.intervals.length]);
+    const triad = [0, 2, 4].map((jump) => scale.intervals[(idx + jump) % scale.intervals.length]);
     const rel = triad.map((v) => (v - iv + 12) % 12).sort((a, b) => a - b);
-    const name = `${noteName(rootPc)}${rel.includes(3) ? 'm' : ''}${state.useFourNoteChords ? '7' : ''}`;
+    const name = `${noteName(rootPc)}${rel.includes(3) ? 'm' : ''}`;
     const chordNotes = rel.map((interval) => noteName((rootPc + interval) % 12));
     return { roman: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][idx] || `${idx + 1}`, name, rootPc, intervals: rel, chordNotes };
   });
@@ -165,9 +162,11 @@ function renderScaleChordButtons() {
   els.scaleChordButtons.innerHTML = '';
   scaleChords().forEach((chord, idx) => {
     const b = document.createElement('button');
-    b.textContent = `${chord.roman} ${chord.name}`;
+    b.textContent = `${chord.roman} : ${chord.name}`;
+    b.classList.add('scale-chord-button');
     const isActive = state.selectedScaleChord === idx;
-    b.className = `${isActive ? 'active' : ''} ${state.selectedScaleChord != null && !isActive ? 'dimmed' : ''}`.trim();
+    if (isActive) b.classList.add('active');
+    if (state.selectedScaleChord != null && !isActive) b.classList.add('dimmed');
     b.onclick = () => {
       if (state.selectedScaleChord === idx) { state.selectedScaleChord = null; state.selectedLegend = new Set(getScalePcData().filter((i) => i.active).map((i) => i.pc)); }
       else { state.selectedScaleChord = idx; state.selectedLegend = new Set(chord.intervals.map((i) => (chord.rootPc + i) % 12)); }
@@ -392,15 +391,10 @@ function renderModeButtons() {
 
 function render() {
   renderTuningControls();
-  renderModeButtons();
-  renderSpecificControls();
   renderLegend();
   renderScaleChordButtons();
   renderFretboard();
-  renderDiagrams();
 }
-
-setupChordModeButtons();
 loadSavedTuningsFromCookie();
 setupTuning();
 setupSelects();

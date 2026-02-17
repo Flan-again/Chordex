@@ -111,6 +111,10 @@ function getScalePcData() {
   return scale.intervals.map((interval, i) => ({ degree: i, interval, pc: (state.root + interval) % 12, label: degreeLabelFromIndex(i), color: DEGREE_COLORS[i % DEGREE_COLORS.length] }));
 }
 
+function getScaleColorByPc() {
+  return new Map(getScalePcData().map((item) => [item.pc, item.color]));
+}
+
 function renderLegend() {
   const pcs = getScalePcData();
   if (!state.selectedLegend.size) pcs.forEach((item) => state.selectedLegend.add(item.pc));
@@ -145,7 +149,7 @@ function renderScaleChordButtons() {
     b.onclick = () => {
       if (state.selectedScaleChord === idx) { state.selectedScaleChord = null; state.selectedLegend = new Set(getScalePcData().map((i) => i.pc)); }
       else { state.selectedScaleChord = idx; state.selectedLegend = new Set(chord.intervals.map((i) => (chord.rootPc + i) % 12)); }
-      renderLegend(); renderFretboard();
+      renderScaleChordButtons(); renderLegend(); renderFretboard();
     };
     els.scaleChordButtons.append(b);
   });
@@ -154,6 +158,7 @@ function renderScaleChordButtons() {
 function renderFretboard() {
   const tuning = [...getTuningPitches()].reverse();
   const active = [...state.activeStrings].reverse();
+  const colorByPc = getScaleColorByPc();
   const width = 1160; const height = 280; const left = 44; const top = 34; const fretSpacing = 68; const stringSpacing = 38;
   let svg = `<svg viewBox="0 0 ${width} ${height}">`;
   for (let s = 0; s < 6; s++) { const y = top + s * stringSpacing; svg += `<line x1="${left}" y1="${y}" x2="${left + fretSpacing * MAX_FRET}" y2="${y}" stroke="#9aa7e7" stroke-width="${(1 + s * .4).toFixed(2)}" opacity="${active[s] ? 1 : .28}"/>`; }
@@ -167,12 +172,17 @@ function renderFretboard() {
       const pc = (openPc + f) % 12;
       if (!state.selectedLegend.has(pc)) continue;
       const x = f === 0 ? left - 18 : left + (f - 0.5) * fretSpacing;
-      const isRoot = pc === state.root;
+      const isOpenString = f === 0;
+      const color = colorByPc.get(pc) || '#98bcff';
       const isSelectedChordRoot = selectedChordRootPc != null && pc === selectedChordRootPc;
       if (isSelectedChordRoot) {
-        svg += `<circle cx="${x}" cy="${y}" r="14" fill="#ffffff" opacity="0.28"/>`;
+        svg += `<circle cx="${x}" cy="${y}" r="${isOpenString ? 18 : 14}" fill="#ffffff" opacity="0.28"/>`;
       }
-      svg += isRoot ? `<circle cx="${x}" cy="${y}" r="10" fill="#ff9f67"/>` : `<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="#98bcff" stroke-width="2.5"/>`;
+      if (isOpenString) {
+        svg += `<circle cx="${x}" cy="${y}" r="13" fill="none" stroke="${color}" stroke-width="3"/>`;
+      } else {
+        svg += `<circle cx="${x}" cy="${y}" r="10" fill="${color}"/>`;
+      }
     }
     svg += `<text x="16" y="${y + 4}" fill="#d2d9ff" opacity="${active[s] ? 1 : .38}" font-size="12">${noteName(openPc)}</text>`;
   });
@@ -250,7 +260,9 @@ function findVoicings(rootPc, intervals) {
 
 function buildDiagramSvg(shape, rootPc, intervals) {
   const tuning = getTuningPitches(); const width = 220; const height = 250; const px = 26; const top = 54; const ss = 33; const fs = 30;
-  const fretted = shape.filter((f) => f > 0); const start = fretted.length ? Math.max(1, Math.min(...fretted)) : 1;
+  const fretted = shape.filter((f) => f > 0);
+  const highestFret = fretted.length ? Math.max(...fretted) : 0;
+  const start = highestFret > 5 ? Math.max(1, Math.min(...fretted)) : 1;
   let svg = `<svg viewBox="0 0 ${width} ${height}">`;
   for (let s = 0; s < 6; s++) { const x = px + s * ss; svg += `<line x1="${x}" y1="${top}" x2="${x}" y2="${top + fs * 5}" stroke="#8392d9" stroke-width="2" opacity="${state.activeStrings[s] ? 1 : .28}"/>`; }
   for (let f = 0; f <= 5; f++) { const y = top + f * fs; svg += `<line x1="${px}" y1="${y}" x2="${px + ss * 5}" y2="${y}" stroke="#9ba8eb" stroke-width="${start === 1 && f===0?6:2}"/>`; }

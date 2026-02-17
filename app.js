@@ -6,13 +6,13 @@ const MAX_TUNING_OFFSET = 8;
 const SAVED_TUNINGS_COOKIE = 'chordex_saved_tunings';
 
 const SCALE_LIBRARY = {
-  major: { label: 'Major', intervals: [0, 2, 4, 5, 7, 9, 11], degrees: [0, 2, 4, 5, 7, 9, 11], third: 4 },
-  minor: { label: 'Minor', intervals: [0, 2, 3, 5, 7, 8, 10], degrees: [0, 2, 3, 5, 7, 8, 10], third: 3 },
-  harmonicMinor: { label: 'Harmonic Minor', intervals: [0, 2, 3, 5, 7, 8, 11], degrees: [0, 2, 3, 5, 7, 8, 11], third: 3 },
-  melodicMinor: { label: 'Melodic Minor', intervals: [0, 2, 3, 5, 7, 9, 11], degrees: [0, 2, 3, 5, 7, 9, 11], third: 3 },
-  majorPentatonic: { label: 'Major Pentatonic', intervals: [0, 2, 4, 7, 9], degrees: [0, 2, 4, 7, 9], third: 4 },
-  minorPentatonic: { label: 'Minor Pentatonic', intervals: [0, 3, 5, 7, 10], degrees: [0, 3, 5, 7, 10], third: 3 },
-  neutralPentatonic: { label: 'Neutral Pentatonic', intervals: [0, 2, 5, 7, 10], degrees: [0, 2, 5, 7, 10], third: 4 },
+  major: { label: 'Major', intervals: [0, 2, 4, 5, 7, 9, 11], degrees: [0, 2, 4, 5, 7, 9, 11], degreeMap: [0, 2, 4, 5, 7, 9, 11], third: 4 },
+  minor: { label: 'Minor', intervals: [0, 2, 3, 5, 7, 8, 10], degrees: [0, 2, 3, 5, 7, 8, 10], degreeMap: [0, 2, 3, 5, 7, 8, 10], third: 3 },
+  harmonicMinor: { label: 'Harmonic Minor', intervals: [0, 2, 3, 5, 7, 8, 11], degrees: [0, 2, 3, 5, 7, 8, 11], degreeMap: [0, 2, 3, 5, 7, 8, 11], third: 3 },
+  melodicMinor: { label: 'Melodic Minor', intervals: [0, 2, 3, 5, 7, 9, 11], degrees: [0, 2, 3, 5, 7, 9, 11], degreeMap: [0, 2, 3, 5, 7, 9, 11], third: 3 },
+  majorPentatonic: { label: 'Major Pentatonic', intervals: [0, 2, 4, 7, 9], degrees: [0, 2, 4, 7, 9], degreeMap: [0, 2, 4, null, 7, 9, null], third: 4 },
+  minorPentatonic: { label: 'Minor Pentatonic', intervals: [0, 3, 5, 7, 10], degrees: [0, 3, 5, 7, 10], degreeMap: [0, null, 3, 5, 7, null, 10], third: 3 },
+  neutralPentatonic: { label: 'Neutral Pentatonic', intervals: [0, 2, 5, 7, 10], degrees: [0, 2, 5, 7, 10], degreeMap: [0, 2, null, 5, 7, null, 10], third: 4 },
   majorBlues: { label: 'Major Blues', intervals: [0, 2, 3, 4, 7, 9], degrees: [0, 2, 3, 4, 7, 9], third: 4 },
   minorBlues: { label: 'Minor Blues', intervals: [0, 3, 5, 6, 7, 10], degrees: [0, 3, 5, 6, 7, 10], third: 3 },
   mixolydian: { label: 'Mixolydian', intervals: [0, 2, 4, 5, 7, 9, 10], degrees: [0, 2, 4, 5, 7, 9, 10], third: 4 },
@@ -20,6 +20,7 @@ const SCALE_LIBRARY = {
 
 const DEGREE_LABELS = ['Root', '2nd', '3rd', '4th', '5th', '6th', '7th'];
 const DEGREE_COLORS = ['#ff9f67', '#7ee081', '#72d5ff', '#d9b3ff', '#ffd66d', '#ff8ab4', '#8fa8ff'];
+const REFERENCE_DEGREE_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
 
 const PRESETS = { 'E Standard': [0, 0, 0, 0, 0, 0], 'Drop D': [-2, 0, 0, 0, 0, 0], 'D Standard': [-2, -2, -2, -2, -2, -2], Custom: null };
 
@@ -108,20 +109,41 @@ function degreeLabelFromIndex(index) { return DEGREE_LABELS[index] || `${index +
 
 function getScalePcData() {
   const scale = SCALE_LIBRARY[state.scaleType];
-  return scale.intervals.map((interval, i) => ({ degree: i, interval, pc: (state.root + interval) % 12, label: degreeLabelFromIndex(i), color: DEGREE_COLORS[i % DEGREE_COLORS.length] }));
+  if (scale.degreeMap) {
+    return REFERENCE_DEGREE_INTERVALS.map((_referenceInterval, degree) => {
+      const interval = scale.degreeMap[degree];
+      return {
+        degree,
+        interval,
+        pc: interval == null ? null : (state.root + interval + 120) % 12,
+        label: degreeLabelFromIndex(degree),
+        color: DEGREE_COLORS[degree % DEGREE_COLORS.length],
+        active: interval != null,
+      };
+    });
+  }
+  return scale.intervals.map((interval, i) => ({
+    degree: i,
+    interval,
+    pc: (state.root + interval + 120) % 12,
+    label: degreeLabelFromIndex(i),
+    color: DEGREE_COLORS[i % DEGREE_COLORS.length],
+    active: true,
+  }));
 }
 
 function getScaleColorByPc() {
-  return new Map(getScalePcData().map((item) => [item.pc, item.color]));
+  return new Map(getScalePcData().filter((item) => item.active).map((item) => [item.pc, item.color]));
 }
 
 function renderLegend() {
   const pcs = getScalePcData();
-  if (!state.selectedLegend.size) pcs.forEach((item) => state.selectedLegend.add(item.pc));
+  if (!state.selectedLegend.size) pcs.filter((item) => item.active).forEach((item) => state.selectedLegend.add(item.pc));
   els.fretboardLegend.innerHTML = '';
-  pcs.forEach((item, idx) => {
-    const chip = document.createElement('button'); chip.className = `legend-item ${state.selectedLegend.has(item.pc) ? '' : 'off'}`;
-    chip.innerHTML = `<span>${degreeLabelFromIndex(idx)}</span><span class="legend-dot" style="background:${item.color};border:2px solid ${item.color};color:#1a2140">${noteName(item.pc)}</span>`;
+  pcs.forEach((item) => {
+    const chip = document.createElement('button'); chip.className = `legend-item ${item.active && state.selectedLegend.has(item.pc) ? '' : 'off'} ${item.active ? '' : 'missing-degree'}`.trim();
+    chip.disabled = !item.active;
+    chip.innerHTML = `<span>${item.label}</span><span class="legend-dot" style="background:${item.active ? item.color : '#394269'};border:2px solid ${item.active ? item.color : '#57608f'};color:${item.active ? '#1a2140' : '#d4daf8'}">${item.active ? noteName(item.pc) : '—'}</span>`;
     chip.onclick = () => { if (state.selectedLegend.has(item.pc)) state.selectedLegend.delete(item.pc); else state.selectedLegend.add(item.pc); state.selectedScaleChord = null; renderFretboard(); renderLegend(); };
     els.fretboardLegend.append(chip);
   });
@@ -147,7 +169,7 @@ function renderScaleChordButtons() {
     const isActive = state.selectedScaleChord === idx;
     b.className = `${isActive ? 'active' : ''} ${state.selectedScaleChord != null && !isActive ? 'dimmed' : ''}`.trim();
     b.onclick = () => {
-      if (state.selectedScaleChord === idx) { state.selectedScaleChord = null; state.selectedLegend = new Set(getScalePcData().map((i) => i.pc)); }
+      if (state.selectedScaleChord === idx) { state.selectedScaleChord = null; state.selectedLegend = new Set(getScalePcData().filter((i) => i.active).map((i) => i.pc)); }
       else { state.selectedScaleChord = idx; state.selectedLegend = new Set(chord.intervals.map((i) => (chord.rootPc + i) % 12)); }
       renderScaleChordButtons(); renderLegend(); renderFretboard();
     };
@@ -171,7 +193,7 @@ function renderFretboard() {
       if (!active[s]) continue;
       const pc = (openPc + f) % 12;
       if (!state.selectedLegend.has(pc)) continue;
-      const x = f === 0 ? left - 18 : left + (f - 0.5) * fretSpacing;
+      const x = f === 0 ? left : left + (f - 0.5) * fretSpacing;
       const isOpenString = f === 0;
       const color = colorByPc.get(pc) || '#98bcff';
       const isSelectedChordRoot = selectedChordRootPc != null && pc === selectedChordRootPc;
@@ -245,17 +267,30 @@ function findVoicings(rootPc, intervals) {
       const minFret = fretted.length ? Math.min(...fretted) : 0;
       const openStrings = sounding.filter((x) => x.f === 0).length;
       const span = fretted.length ? maxFret - minFret + 1 : 0;
-      results.push({ frets: [...shape], lowest, minFret, maxFret, span, soundingCount: sounding.length, openStrings, innerMutedStrings });
+      const pcsKey = [...uniq].sort((a, b) => a - b).join('-');
+      const fretSum = fretted.reduce((sum, fret) => sum + fret, 0);
+      results.push({ frets: [...shape], lowest, minFret, maxFret, span, soundingCount: sounding.length, openStrings, innerMutedStrings, pcsKey, fretSum });
       return;
     }
     for (const f of options[i]) { shape[i] = f; dfs(i + 1); }
   }
   dfs(0);
   const seen = new Set();
-  return results
+  const byPcAndBass = new Map();
+  results.forEach((v) => {
+    const groupKey = `${v.lowest}|${v.pcsKey}`;
+    const current = byPcAndBass.get(groupKey);
+    if (!current
+      || v.soundingCount > current.soundingCount
+      || (v.soundingCount === current.soundingCount && v.fretSum < current.fretSum)
+      || (v.soundingCount === current.soundingCount && v.fretSum === current.fretSum && v.maxFret < current.maxFret)) {
+      byPcAndBass.set(groupKey, v);
+    }
+  });
+  return [...byPcAndBass.values()]
     .sort((a, b) => a.minFret - b.minFret || a.maxFret - b.maxFret || a.span - b.span || b.soundingCount - a.soundingCount || a.innerMutedStrings - b.innerMutedStrings || a.lowest - b.lowest || b.openStrings - a.openStrings)
     .filter((v) => { const key = v.frets.join(','); if (seen.has(key)) return false; seen.add(key); return true; })
-    .slice(0, 60);
+    .slice(0, 240);
 }
 
 function buildDiagramSvg(shape, rootPc, intervals) {

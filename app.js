@@ -184,6 +184,12 @@ function findVoicings(rootPc, intervals) {
     for (let f = 0; f <= MAX_FRET; f++) if (chordSet.has((open + f) % 12)) arr.push(f);
     return arr;
   });
+  const hasNoteInRange = (stringIndex, minFret, maxFret) => {
+    for (let fret = minFret; fret <= maxFret; fret++) {
+      if (chordSet.has((tuning[stringIndex] + fret) % 12)) return true;
+    }
+    return false;
+  };
   function dfs(i) {
     if (i === 6) {
       const sounding = shape.map((f, s) => ({ f, s })).filter((x) => x.f >= 0);
@@ -194,15 +200,33 @@ function findVoicings(rootPc, intervals) {
       if (intervals.length >= 3 && uniq.size < 3) return;
       const fretted = sounding.map((x) => x.f).filter((f) => f > 0);
       if (fretted.length && Math.max(...fretted) - Math.min(...fretted) > 4) return;
+      const soundingStrings = sounding.map((x) => x.s);
+      const lowestString = Math.min(...soundingStrings);
+      const highestString = Math.max(...soundingStrings);
+      const minWindowFret = fretted.length ? Math.max(0, Math.min(...fretted) - 1) : 0;
+      const maxWindowFret = fretted.length ? Math.min(MAX_FRET, Math.max(...fretted) + 1) : 4;
+      let innerMutedStrings = 0;
+      for (let s = lowestString; s <= highestString; s++) {
+        if (shape[s] === -1) {
+          if (hasNoteInRange(s, minWindowFret, maxWindowFret)) return;
+          innerMutedStrings += 1;
+        }
+      }
       const lowest = pcs[0];
-      results.push({ frets: [...shape], lowest, minFret: fretted.length ? Math.min(...fretted) : 0 });
+      const maxFret = fretted.length ? Math.max(...fretted) : 0;
+      const minFret = fretted.length ? Math.min(...fretted) : 0;
+      const openStrings = sounding.filter((x) => x.f === 0).length;
+      results.push({ frets: [...shape], lowest, minFret, maxFret, span: maxFret - minFret, soundingCount: sounding.length, openStrings, innerMutedStrings });
       return;
     }
     for (const f of options[i]) { shape[i] = f; dfs(i + 1); }
   }
   dfs(0);
   const seen = new Set();
-  return results.sort((a, b) => a.lowest - b.lowest || a.minFret - b.minFret).filter((v) => { const key = v.frets.join(','); if (seen.has(key)) return false; seen.add(key); return true; }).slice(0, 60);
+  return results
+    .sort((a, b) => a.minFret - b.minFret || a.maxFret - b.maxFret || a.span - b.span || b.soundingCount - a.soundingCount || a.innerMutedStrings - b.innerMutedStrings || a.lowest - b.lowest || b.openStrings - a.openStrings)
+    .filter((v) => { const key = v.frets.join(','); if (seen.has(key)) return false; seen.add(key); return true; })
+    .slice(0, 60);
 }
 
 function buildDiagramSvg(shape, rootPc, intervals) {

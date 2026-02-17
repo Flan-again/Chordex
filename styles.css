@@ -42,10 +42,12 @@ label { color:var(--muted); font-size:.9rem; display:grid; gap:.35rem; }
 .legend-item.missing-degree { cursor:default; }
 .legend-dot { width:1.55rem; height:1.55rem; border-radius:50%; display:grid; place-items:center; font-size:.72rem; font-weight:700; color:#0f1324; }
 .scale-chord-buttons { display:flex; flex-wrap:wrap; gap:.35rem; justify-content:flex-end; }
+.scale-chord-button { width:108px; text-align:center; }
 .scale-chord-buttons button.active { border-color:#67f0c7; }
 .scale-chord-buttons button.dimmed { opacity:.45; }
-.fretboard-wrap { overflow:auto; border-radius:10px; border:1px solid #2f3c79; padding:.5rem; background:#0f1635; }
+.fretboard-wrap { overflow:auto; border-radius:10px; border:1px solid #2f3c79; padding:.5rem; background:#0f1635; display:flex; justify-content:center; }
 svg { width:100%; height:auto; display:block; }
+.fretboard-wrap svg { width:min(100%, 1160px); margin:0 auto; }
 .segmented { display:flex; flex-wrap:wrap; gap:.35rem; }
 .segmented button.active { border-color:#67f0c7; }
 .hidden { display:none; }

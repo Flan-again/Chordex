@@ -17,6 +17,21 @@ header p { margin: .35rem 0 0; color: var(--muted); }
 .panel-title-row { display:flex; justify-content:space-between; align-items:center; gap:.8rem; flex-wrap:wrap; }
 .panel h2 { margin:0 0 .75rem; }
 select,input[type='text'],button,input[type='checkbox'] { background:#0f1530; color:var(--text); border:1px solid #3a4787; border-radius:8px; padding:.45rem .5rem; font-size: 12px;}
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 2rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #9aacff 50%),
+    linear-gradient(135deg, #9aacff 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) calc(50% + 1px),
+    calc(100% - 9px) calc(50% + 1px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+select::-ms-expand { display: none; }
+select option { background:#0f1530; color:var(--text); }
 button { cursor:pointer; }
 label { color:var(--muted); font-size:.9rem; display:grid; gap:.35rem; }
 .options-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:.8rem; align-items:end; }
